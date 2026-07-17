@@ -70,6 +70,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [syncCode, setSyncCodeState] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
 
+  // Miroir de l'état courant pour les callbacks hors cycle de rendu
+  // (réconciliation au pull, flush avant mise en arrière-plan).
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   // Horodatage de la dernière modification locale (persisté avec l'état).
   const updatedAtRef = useRef(0);
   // true pendant l'application d'un état distant : évite de le re-pousser
@@ -92,33 +97,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  /** Récupère l'état distant ; l'applique s'il est plus récent que le local. */
-  const pullRemote = useCallback(
-    async (code: string) => {
-      setSyncStatus("syncing");
-      try {
-        const res = await fetch("/api/sync", {
-          headers: { "x-sync-code": code },
-          cache: "no-store"
-        });
-        if (res.status === 503) {
-          setSyncStatus("unavailable");
-          return;
-        }
-        if (!res.ok) throw new Error(`sync HTTP ${res.status}`);
-        const { data } = await res.json();
-        if (data && data.updatedAt > updatedAtRef.current) {
-          applyRemote(data);
-        }
-        setSyncStatus("ok");
-      } catch {
-        // Jamais bloquant : les données locales restent la référence.
-        setSyncStatus("error");
-      }
-    },
-    [applyRemote]
-  );
-
   const pushRemote = useCallback(async (code: string, snapshot: BudgetState) => {
     setSyncStatus("syncing");
     try {
@@ -138,19 +116,68 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Chargement initial : localStorage, puis pull distant si un code est défini.
+  /**
+   * Réconciliation avec le serveur :
+   * - distant strictement plus récent → appliqué, SAUF s'il est vide alors que
+   *   le local a des transactions (un état vide n'écrase jamais un état plein) ;
+   * - local plus récent, serveur vide ou absent → le local est poussé
+   *   immédiatement (horodatage rafraîchi pour que les autres appareils le
+   *   retiennent), sans attendre une prochaine modification.
+   */
+  const pullRemote = useCallback(
+    async (code: string, local?: BudgetState) => {
+      setSyncStatus("syncing");
+      try {
+        const res = await fetch("/api/sync", {
+          headers: { "x-sync-code": code },
+          cache: "no-store"
+        });
+        if (res.status === 503) {
+          setSyncStatus("unavailable");
+          return;
+        }
+        if (!res.ok) throw new Error(`sync HTTP ${res.status}`);
+        const { data } = await res.json();
+        const snapshot = local ?? stateRef.current;
+        const emptyOverwrite =
+          !!data && data.transactions?.length === 0 && snapshot.transactions.length > 0;
+        if (data && data.updatedAt > updatedAtRef.current && !emptyOverwrite) {
+          applyRemote(data);
+          setSyncStatus("ok");
+        } else if (
+          snapshot.transactions.length > 0 &&
+          (!data || data.updatedAt < updatedAtRef.current || emptyOverwrite)
+        ) {
+          updatedAtRef.current = Date.now();
+          await pushRemote(code, snapshot);
+        } else {
+          setSyncStatus("ok");
+        }
+      } catch {
+        // Jamais bloquant : les données locales restent la référence.
+        setSyncStatus("error");
+      }
+    },
+    [applyRemote, pushRemote]
+  );
+
+  // Chargement initial : localStorage, puis réconciliation distante si un code
+  // est défini (l'état tout juste chargé est passé explicitement car setState
+  // n'a pas encore été appliqué à ce stade).
   useEffect(() => {
     let code: string | null = null;
+    let loaded: BudgetState | undefined;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as BudgetState & { updatedAt?: number };
         updatedAtRef.current = saved.updatedAt ?? 0;
-        setState({
+        loaded = {
           transactions: saved.transactions ?? [],
           categories: saved.categories?.length ? saved.categories : DEFAULT_CATEGORIES,
           currency: saved.currency ?? "€"
-        });
+        };
+        setState(loaded);
       }
       code = localStorage.getItem(SYNC_CODE_KEY);
     } catch {
@@ -158,7 +185,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     }
     if (code) {
       setSyncCodeState(code);
-      void pullRemote(code);
+      void pullRemote(code, loaded);
     }
     setReady(true);
   }, [pullRemote]);
@@ -187,6 +214,34 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       }, PUSH_DEBOUNCE_MS);
     }
   }, [state, ready, syncCode, pushRemote]);
+
+  // iOS suspend les minuteurs des PWA dès la mise en arrière-plan : si un push
+  // différé est en attente au moment où l'app se cache (verrouillage, retour à
+  // l'accueil), on l'envoie immédiatement — keepalive pour que la requête
+  // survive à la fermeture de la page.
+  useEffect(() => {
+    if (!syncCode) return;
+    const flush = () => {
+      if (!pushTimerRef.current) return;
+      clearTimeout(pushTimerRef.current);
+      pushTimerRef.current = null;
+      void fetch("/api/sync", {
+        method: "PUT",
+        keepalive: true,
+        headers: { "Content-Type": "application/json", "x-sync-code": syncCode },
+        body: JSON.stringify({ ...stateRef.current, updatedAt: updatedAtRef.current })
+      });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [syncCode]);
 
   const enableSync = useCallback(
     async (code: string) => {
