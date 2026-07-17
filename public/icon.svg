@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2E3532"/>
+  <rect x="48" y="48" width="416" height="416" rx="48" fill="none" stroke="#8b6238" stroke-width="28"/>
+  <text x="256" y="330" font-family="cursive" font-size="220" fill="#F2EFE6" text-anchor="middle">€</text>
+  <path d="M110 400 q80 -18 160 0 q70 14 132 -6" stroke="#9ED8A4" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.9"/>
+</svg>

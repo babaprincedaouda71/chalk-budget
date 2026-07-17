@@ -1,0 +1,13 @@
+{
+  "name": "Ardoise — Budget",
+  "short_name": "Ardoise",
+  "description": "Gestion de budget skeuomorphe : tableau noir, craie et carnet.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#232926",
+  "theme_color": "#232926",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

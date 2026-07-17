@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-boardEdge font-body antialiased;
+}
+
+/* ---------- Texture tableau noir ---------- */
+.board-bg {
+  background-color: theme("colors.board");
+  background-image:
+    /* traces d'effacement à la craie */
+    radial-gradient(ellipse 60% 22% at 20% 18%, rgba(242, 239, 230, 0.05), transparent 70%),
+    radial-gradient(ellipse 50% 18% at 78% 42%, rgba(242, 239, 230, 0.04), transparent 70%),
+    radial-gradient(ellipse 70% 25% at 40% 78%, rgba(242, 239, 230, 0.05), transparent 70%),
+    /* vignettage des bords */
+    radial-gradient(ellipse 120% 100% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+}
+.board-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--noise);
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+}
+
+/* Écriture à la craie : léger flou + ombre diffuse */
+.chalk-text {
+  @apply font-chalk;
+  text-shadow:
+    0 0 1px rgba(242, 239, 230, 0.55),
+    0 0 6px rgba(242, 239, 230, 0.12);
+  letter-spacing: 0.02em;
+}
+.chalk-green {
+  color: theme("colors.chalkGreen");
+  text-shadow: 0 0 1px rgba(158, 216, 164, 0.55), 0 0 6px rgba(158, 216, 164, 0.15);
+}
+.chalk-red {
+  color: theme("colors.brick");
+  text-shadow: 0 0 1px rgba(217, 118, 92, 0.55), 0 0 6px rgba(217, 118, 92, 0.15);
+}
+
+/* Trait de craie sous les titres */
+.chalk-underline {
+  position: relative;
+}
+.chalk-underline::after {
+  content: "";
+  position: absolute;
+  left: 2%;
+  right: 4%;
+  bottom: -4px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(242, 239, 230, 0.5) 12%, rgba(242, 239, 230, 0.6) 60%, transparent);
+  filter: blur(0.4px);
+}
+
+/* ---------- Texture papier / carnet ---------- */
+.paper-bg {
+  background-color: theme("colors.paper");
+  background-image:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(58, 52, 44, 0.04), transparent 60%),
+    var(--noise);
+  background-size: auto, 160px 160px;
+  background-blend-mode: normal, multiply;
+}
+
+/* Feuille lignée du carnet de transactions */
+.notebook-lines {
+  background-image:
+    linear-gradient(theme("colors.paperLine" / 45%) 1px, transparent 1px);
+  background-size: 100% 2.5rem;
+  background-position: 0 calc(2.5rem - 1px);
+}
+.notebook-margin {
+  box-shadow: inset 2.25rem 0 0 -2.1rem theme("colors.paperMargin" / 70%);
+}
+
+/* Cadre en bois du tableau (signature visuelle) */
+.wood-frame {
+  border: 10px solid transparent;
+  border-image: repeating-linear-gradient(
+      100deg,
+      #7a5230 0 10px,
+      #8b6238 10px 22px,
+      #6e4a2b 22px 30px
+    )
+    10;
+  border-radius: 4px;
+}
+
+/* Scrollbar discrète */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
