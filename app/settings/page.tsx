@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useBudget } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-const CURRENCIES = ["€", "$", "MAD", "£", "CHF", "CAD"];
+const CURRENCIES = ["€", "$", "MAD", "FCFA", "£", "CHF", "CAD"];
 
 const SYNC_LABELS: Record<string, string> = {
   syncing: "Synchronisation…",

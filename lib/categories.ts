@@ -187,6 +187,27 @@ export const DEFAULT_CATEGORIES: Category[] = [
     keywords: ["salaire", "paie", "paye", "prime"]
   },
   {
+    id: "bourse-income",
+    name: "Bourse",
+    icon: "GraduationCap",
+    kind: "income",
+    keywords: ["bourse reçue", "bourse d'étude", "bourse d'etude", "scholarship"]
+  },
+  {
+    id: "don-income",
+    name: "Don",
+    icon: "HandHeart",
+    kind: "income",
+    keywords: ["don", "donation", "don reçu"]
+  },
+  {
+    id: "part-time-job",
+    name: "Part Time Job",
+    icon: "Briefcase",
+    kind: "income",
+    keywords: ["part time", "job", "freelance", "mission"]
+  },
+  {
     id: "autres-revenus",
     name: "Autres revenus",
     icon: "Coins",
@@ -204,7 +225,7 @@ export const FALLBACK_EXPENSE_ID = "divers";
  * chargé, `migrateCatalog` remplace les anciennes catégories par défaut par
  * les nouvelles et rattache les transactions aux catégories équivalentes.
  */
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 3;
 
 // Identifiants des catégories par défaut de la V1 (remplacées à la migration ;
 // les catégories créées par l'utilisateur sont conservées telles quelles).
@@ -225,16 +246,40 @@ const V1_ID_MAP: Record<string, string> = {
   loisirs: "divers"
 };
 
+// Catégories ajoutées en V3 (revenus : Bourse, Don, Part Time Job).
+const V3_ADDED_IDS = ["bourse-income", "don-income", "part-time-job"];
+
 export function migrateCatalog<
   T extends { transactions: Transaction[]; categories: Category[] }
 >(state: T, version: number | undefined): T {
-  if ((version ?? 1) >= CATALOG_VERSION) return state;
-  const custom = state.categories.filter((c) => !V1_DEFAULT_IDS.has(c.id));
-  return {
-    ...state,
-    categories: [...DEFAULT_CATEGORIES, ...custom],
-    transactions: state.transactions.map((t) =>
-      V1_ID_MAP[t.categoryId] ? { ...t, categoryId: V1_ID_MAP[t.categoryId] } : t
-    )
-  };
+  let migrated = state;
+  const from = version ?? 1;
+
+  if (from < 2) {
+    // V1 → V2 : remplacement des catégories par défaut d'origine (celles
+    // créées par l'utilisateur sont conservées) et remappage des transactions.
+    const custom = migrated.categories.filter((c) => !V1_DEFAULT_IDS.has(c.id));
+    migrated = {
+      ...migrated,
+      categories: [...DEFAULT_CATEGORIES, ...custom],
+      transactions: migrated.transactions.map((t) =>
+        V1_ID_MAP[t.categoryId] ? { ...t, categoryId: V1_ID_MAP[t.categoryId] } : t
+      )
+    };
+  }
+
+  if (from < 3) {
+    // V2 → V3 : ajout des nouvelles catégories par défaut absentes (sans
+    // ressusciter celles que l'utilisateur aurait supprimées d'une version
+    // ultérieure, d'où la liste explicite des ids ajoutés en V3).
+    const existing = new Set(migrated.categories.map((c) => c.id));
+    const additions = DEFAULT_CATEGORIES.filter(
+      (c) => V3_ADDED_IDS.includes(c.id) && !existing.has(c.id)
+    );
+    if (additions.length) {
+      migrated = { ...migrated, categories: [...migrated.categories, ...additions] };
+    }
+  }
+
+  return migrated;
 }
