@@ -130,7 +130,7 @@ export function TransactionForm({ initial, onDone }: Props) {
         type={type}
         selectedId={categoryId}
         onSelect={(id) => {
-          setCategoryId(id);
+          if (id) setCategoryId(id);
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}

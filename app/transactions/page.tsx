@@ -1,25 +1,55 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Repeat } from "lucide-react";
+import { ChevronDown, Plus, Repeat, Search, X } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
+import { CategoryPicker } from "@/components/category-picker";
 import { TransactionForm } from "@/components/transaction-form";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { MONTH_NAMES, formatAmount, useBudget } from "@/lib/store";
-import { Transaction } from "@/lib/types";
+import { Transaction, TxType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+type TypeFilter = "all" | TxType;
 
 export default function TransactionsPage() {
   const { monthTransactions, categories, currency, month, setMonth } = useBudget();
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [filterPickerOpen, setFilterPickerOpen] = useState(false);
 
   const cat = (id: string) => categories.find((c) => c.id === id);
+
+  const setType = (t: TypeFilter) => {
+    setTypeFilter(t);
+    setCategoryFilter(null); // la catégorie filtrée dépend du type
+  };
+
+  // Recherche (note + nom de catégorie) et filtres type/catégorie.
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return monthTransactions.filter((t) => {
+      if (typeFilter !== "all" && t.type !== typeFilter) return false;
+      if (categoryFilter && t.categoryId !== categoryFilter) return false;
+      if (q) {
+        const c = categories.find((x) => x.id === t.categoryId);
+        const hay = `${t.note ?? ""} ${c?.name ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [monthTransactions, typeFilter, categoryFilter, search, categories]);
+
+  const hasFilters = typeFilter !== "all" || !!categoryFilter || !!search.trim();
+  const filterCategory = categoryFilter ? cat(categoryFilter) : null;
 
   // Groupement par date (les récurrentes d'un mois antérieur : groupe dédié)
   const groups = useMemo(() => {
     const map = new Map<string, Transaction[]>();
-    for (const t of monthTransactions) {
+    for (const t of filtered) {
       const d = new Date(t.date + "T00:00:00");
       const inMonth = d.getFullYear() === month.year && d.getMonth() === month.month;
       const key = inMonth ? t.date : "recurring";
@@ -28,7 +58,7 @@ export default function TransactionsPage() {
     return [...map.entries()].sort((a, b) =>
       a[0] === "recurring" ? 1 : b[0] === "recurring" ? -1 : b[0].localeCompare(a[0])
     );
-  }, [monthTransactions, month]);
+  }, [filtered, month]);
 
   const dateLabel = (key: string) =>
     key === "recurring"
@@ -59,10 +89,79 @@ export default function TransactionsPage() {
         </button>
       </header>
 
+      {/* Recherche + filtres */}
+      <div className="border-b border-ink/10 py-3 pl-12 pr-4">
+        <div className="relative mb-2">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-inkSoft" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher une transaction…"
+            className="w-full rounded-lg border border-ink/20 bg-white/60 py-2 pl-9 pr-8 text-sm text-ink placeholder:text-inkSoft/70 focus:border-ink/50 focus:outline-none"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              aria-label="Effacer la recherche"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-inkSoft hover:bg-ink/10"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              ["all", "Toutes"],
+              ["expense", "Dépenses"],
+              ["income", "Revenus"]
+            ] as [TypeFilter, string][]
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setType(value)}
+              aria-pressed={typeFilter === value}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition",
+                typeFilter === value
+                  ? "border-ink bg-ink text-paper"
+                  : "border-ink/25 bg-white/40 text-inkSoft hover:border-ink/50"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+
+          {typeFilter !== "all" && (
+            <button
+              onClick={() => setFilterPickerOpen(true)}
+              className={cn(
+                "flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition",
+                filterCategory
+                  ? "border-ink bg-ink text-paper"
+                  : "border-dashed border-ink/40 bg-white/40 text-inkSoft hover:border-ink/60"
+              )}
+            >
+              {filterCategory && (
+                <CategoryIcon name={filterCategory.icon} className="h-3.5 w-3.5" />
+              )}
+              <span className="max-w-[10rem] truncate">
+                {filterCategory ? filterCategory.name : "Catégorie"}
+              </span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="notebook-lines min-h-[70vh] pl-12 pr-4">
         {groups.length === 0 && (
           <p className="pt-10 text-center text-inkSoft">
-            Page blanche : aucune transaction ce mois-ci.
+            {hasFilters
+              ? "Aucune transaction ne correspond à la recherche."
+              : "Page blanche : aucune transaction ce mois-ci."}
           </p>
         )}
 
@@ -128,6 +227,21 @@ export default function TransactionsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {typeFilter !== "all" && (
+        <CategoryPicker
+          open={filterPickerOpen}
+          type={typeFilter}
+          selectedId={categoryFilter}
+          allowAll
+          title="Filtrer par catégorie"
+          onSelect={(id) => {
+            setCategoryFilter(id);
+            setFilterPickerOpen(false);
+          }}
+          onClose={() => setFilterPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }

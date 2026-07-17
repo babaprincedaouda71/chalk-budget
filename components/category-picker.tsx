@@ -10,9 +10,13 @@ import { cn } from "@/lib/utils";
 interface Props {
   open: boolean;
   type: TxType;
-  selectedId: string;
-  onSelect: (id: string) => void;
+  selectedId: string | null;
+  /** null = « Toutes les catégories » (proposé si allowAll) */
+  onSelect: (id: string | null) => void;
   onClose: () => void;
+  /** Ajoute une entrée « Toutes les catégories » en tête (mode filtre) */
+  allowAll?: boolean;
+  title?: string;
 }
 
 /**
@@ -20,7 +24,15 @@ interface Props {
  * d'ajout). Implémentée en Dialog Radix : les dialogs imbriqués s'empilent
  * proprement, seule la couche du dessus réagit aux interactions extérieures.
  */
-export function CategoryPicker({ open, type, selectedId, onSelect, onClose }: Props) {
+export function CategoryPicker({
+  open,
+  type,
+  selectedId,
+  onSelect,
+  onClose,
+  allowAll = false,
+  title = "Choisir une catégorie"
+}: Props) {
   const { categories } = useBudget();
   const list = categories.filter((c) => c.kind === type);
 
@@ -42,11 +54,28 @@ export function CategoryPicker({ open, type, selectedId, onSelect, onClose }: Pr
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <DialogPrimitive.Title className="text-xl font-bold">
-                Choisir une catégorie
+                {title}
               </DialogPrimitive.Title>
             </header>
 
             <ul className="divide-y divide-ink/10 rounded-xl border border-ink/15 bg-white/40">
+              {allowAll && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(null)}
+                    aria-pressed={selectedId === null}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-3 py-3 text-left transition",
+                      selectedId === null ? "bg-ink/5 font-bold" : "hover:bg-ink/5"
+                    )}
+                  >
+                    <CategoryIcon name="CircleDashed" className="h-5 w-5 shrink-0 text-inkSoft" />
+                    <span className="flex-1">Toutes les catégories</span>
+                    {selectedId === null && <Check className="h-4 w-4 shrink-0" />}
+                  </button>
+                </li>
+              )}
               {list.map((c) => {
                 const active = c.id === selectedId;
                 return (
