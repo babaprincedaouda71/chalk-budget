@@ -10,7 +10,12 @@ import React, {
   useState
 } from "react";
 import { Category, Transaction } from "./types";
-import { DEFAULT_CATEGORIES } from "./categories";
+import {
+  CATALOG_VERSION,
+  DEFAULT_CATEGORIES,
+  FALLBACK_EXPENSE_ID,
+  migrateCatalog
+} from "./categories";
 
 /**
  * Persistance : localStorage (source primaire, hors ligne d'abord) +
@@ -39,6 +44,8 @@ interface BudgetContextValue extends BudgetState {
   updateTransaction: (tx: Transaction) => void;
   deleteTransaction: (id: string) => void;
   addCategory: (c: Omit<Category, "id">) => void;
+  updateCategory: (c: Category) => void;
+  deleteCategory: (id: string) => void;
   setCurrency: (c: string) => void;
   resetAll: () => void;
   monthTransactions: Transaction[];
@@ -87,14 +94,20 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     transactions: Transaction[];
     categories: Category[];
     currency: string;
+    catalogVersion?: number;
   }) => {
     applyingRemoteRef.current = true;
     updatedAtRef.current = data.updatedAt;
-    setState({
-      transactions: data.transactions ?? [],
-      categories: data.categories?.length ? data.categories : DEFAULT_CATEGORIES,
-      currency: data.currency ?? "€"
-    });
+    setState(
+      migrateCatalog(
+        {
+          transactions: data.transactions ?? [],
+          categories: data.categories?.length ? data.categories : DEFAULT_CATEGORIES,
+          currency: data.currency ?? "€"
+        },
+        data.catalogVersion
+      )
+    );
   }, []);
 
   const pushRemote = useCallback(async (code: string, snapshot: BudgetState) => {
@@ -103,7 +116,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/sync", {
         method: "PUT",
         headers: { "Content-Type": "application/json", "x-sync-code": code },
-        body: JSON.stringify({ ...snapshot, updatedAt: updatedAtRef.current })
+        body: JSON.stringify({
+          ...snapshot,
+          updatedAt: updatedAtRef.current,
+          catalogVersion: CATALOG_VERSION
+        })
       });
       if (res.status === 503) {
         setSyncStatus("unavailable");
@@ -149,6 +166,14 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           (!data || data.updatedAt < updatedAtRef.current || emptyOverwrite)
         ) {
           updatedAtRef.current = Date.now();
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              ...snapshot,
+              updatedAt: updatedAtRef.current,
+              catalogVersion: CATALOG_VERSION
+            })
+          );
           await pushRemote(code, snapshot);
         } else {
           setSyncStatus("ok");
@@ -170,13 +195,31 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const saved = JSON.parse(raw) as BudgetState & { updatedAt?: number };
-        updatedAtRef.current = saved.updatedAt ?? 0;
-        loaded = {
-          transactions: saved.transactions ?? [],
-          categories: saved.categories?.length ? saved.categories : DEFAULT_CATEGORIES,
-          currency: saved.currency ?? "€"
+        const saved = JSON.parse(raw) as BudgetState & {
+          updatedAt?: number;
+          catalogVersion?: number;
         };
+        updatedAtRef.current = saved.updatedAt ?? 0;
+        loaded = migrateCatalog(
+          {
+            transactions: saved.transactions ?? [],
+            categories: saved.categories?.length ? saved.categories : DEFAULT_CATEGORIES,
+            currency: saved.currency ?? "€"
+          },
+          saved.catalogVersion
+        );
+        if ((saved.catalogVersion ?? 1) < CATALOG_VERSION) {
+          // Catalogue migré : persisté tout de suite, sans toucher à
+          // l'horodatage (pas un changement fait par l'utilisateur).
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              ...loaded,
+              updatedAt: updatedAtRef.current,
+              catalogVersion: CATALOG_VERSION
+            })
+          );
+        }
         setState(loaded);
       }
       code = localStorage.getItem(SYNC_CODE_KEY);
@@ -190,22 +233,41 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, [pullRemote]);
 
+  // Premier passage de l'effet de sauvegarde après le chargement initial :
+  // rien n'a changé, il ne faut surtout pas rafraîchir l'horodatage (sinon
+  // l'état local paraît toujours plus récent que le serveur et le pull de
+  // démarrage ne s'applique jamais).
+  const firstSaveRef = useRef(true);
+
   // Sauvegarde locale à chaque changement + push distant différé.
   useEffect(() => {
     if (!ready) return;
     if (applyingRemoteRef.current) {
       // État venu du serveur : on le persiste localement sans le re-pousser.
       applyingRemoteRef.current = false;
+      firstSaveRef.current = false;
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ...state, updatedAt: updatedAtRef.current })
+        JSON.stringify({
+          ...state,
+          updatedAt: updatedAtRef.current,
+          catalogVersion: CATALOG_VERSION
+        })
       );
+      return;
+    }
+    if (firstSaveRef.current) {
+      firstSaveRef.current = false;
       return;
     }
     updatedAtRef.current = Date.now();
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ ...state, updatedAt: updatedAtRef.current })
+      JSON.stringify({
+        ...state,
+        updatedAt: updatedAtRef.current,
+        catalogVersion: CATALOG_VERSION
+      })
     );
     if (syncCode) {
       if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
@@ -229,7 +291,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         method: "PUT",
         keepalive: true,
         headers: { "Content-Type": "application/json", "x-sync-code": syncCode },
-        body: JSON.stringify({ ...stateRef.current, updatedAt: updatedAtRef.current })
+        body: JSON.stringify({
+          ...stateRef.current,
+          updatedAt: updatedAtRef.current,
+          catalogVersion: CATALOG_VERSION
+        })
       });
     };
     const onVisibility = () => {
@@ -287,6 +353,37 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const addCategory = useCallback((c: Omit<Category, "id">) => {
     const id = c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + uid().slice(0, 4);
     setState((s) => ({ ...s, categories: [...s.categories, { ...c, id }] }));
+  }, []);
+
+  const updateCategory = useCallback((cat: Category) => {
+    setState((s) => ({
+      ...s,
+      categories: s.categories.map((c) => (c.id === cat.id ? cat : c))
+    }));
+  }, []);
+
+  /**
+   * Supprime une catégorie ; ses transactions basculent vers « Divers » si
+   * elle existe (même type), sinon vers la première catégorie restante du même
+   * type. La dernière catégorie d'un type ne peut pas être supprimée.
+   */
+  const deleteCategory = useCallback((id: string) => {
+    setState((s) => {
+      const cat = s.categories.find((c) => c.id === id);
+      if (!cat) return s;
+      const remaining = s.categories.filter((c) => c.id !== id);
+      const substitute =
+        remaining.find((c) => c.id === FALLBACK_EXPENSE_ID && c.kind === cat.kind) ??
+        remaining.find((c) => c.kind === cat.kind);
+      if (!substitute) return s;
+      return {
+        ...s,
+        categories: remaining,
+        transactions: s.transactions.map((t) =>
+          t.categoryId === id ? { ...t, categoryId: substitute.id } : t
+        )
+      };
+    });
   }, []);
 
   const setCurrency = useCallback(
@@ -354,6 +451,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     updateTransaction,
     deleteTransaction,
     addCategory,
+    updateCategory,
+    deleteCategory,
     setCurrency,
     resetAll,
     monthTransactions,

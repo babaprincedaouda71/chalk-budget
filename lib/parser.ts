@@ -51,10 +51,16 @@ function buildItem(words: string[], amount: number, categories: Category[]): Par
     }
   }
 
+  // Secours : "divers" si présente, sinon la première catégorie de dépense —
+  // les catégories étant modifiables, l'id de secours peut avoir été supprimé.
+  const fallback =
+    categories.find((c) => c.id === FALLBACK_EXPENSE_ID) ??
+    categories.find((c) => c.kind === "expense");
+
   return {
     note,
     amount,
-    categoryId: best?.id ?? FALLBACK_EXPENSE_ID,
+    categoryId: best?.id ?? fallback?.id ?? FALLBACK_EXPENSE_ID,
     type: best?.kind ?? "expense"
   };
 }

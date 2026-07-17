@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { CategoryIcon } from "./category-icon";
+import { CategoryPicker } from "./category-picker";
 import { useBudget } from "@/lib/store";
 import { Transaction, TxType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,8 @@ export function TransactionForm({ initial, onDone }: Props) {
   const [categoryId, setCategoryId] = useState(
     initial?.categoryId ?? typeCategories[0]?.id ?? ""
   );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const selectedCategory = typeCategories.find((c) => c.id === categoryId);
 
   const switchType = (income: boolean) => {
     const next: TxType = income ? "income" : "expense";
@@ -98,29 +102,39 @@ export function TransactionForm({ initial, onDone }: Props) {
         />
       </label>
 
-      {/* Catégorie (icônes monochromes) */}
-      <fieldset>
-        <legend className="mb-1 text-sm text-inkSoft">Catégorie</legend>
-        <div className="grid grid-cols-4 gap-2">
-          {typeCategories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCategoryId(c.id)}
-              aria-pressed={categoryId === c.id}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40",
-                categoryId === c.id
-                  ? "border-ink bg-ink text-paper"
-                  : "border-ink/20 bg-white/40 text-ink hover:border-ink/50"
-              )}
-            >
-              <CategoryIcon name={c.icon} className="h-5 w-5" />
-              <span className="truncate w-full text-center">{c.name}</span>
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      {/* Catégorie : ouvre une page de sélection dédiée */}
+      <div>
+        <span className="mb-1 block text-sm text-inkSoft">Catégorie</span>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="flex w-full items-center gap-3 rounded-lg border border-ink/20 bg-white/60 px-3 py-2.5 text-left transition hover:border-ink/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40"
+        >
+          {selectedCategory ? (
+            <>
+              <CategoryIcon
+                name={selectedCategory.icon}
+                className="h-5 w-5 shrink-0 text-inkSoft"
+              />
+              <span className="flex-1 truncate">{selectedCategory.name}</span>
+            </>
+          ) : (
+            <span className="flex-1 text-inkSoft">Choisir une catégorie…</span>
+          )}
+          <ChevronRight className="h-4 w-4 shrink-0 text-inkSoft" />
+        </button>
+      </div>
+
+      <CategoryPicker
+        open={pickerOpen}
+        type={type}
+        selectedId={categoryId}
+        onSelect={(id) => {
+          setCategoryId(id);
+          setPickerOpen(false);
+        }}
+        onClose={() => setPickerOpen(false)}
+      />
 
       {/* Note */}
       <label className="block">

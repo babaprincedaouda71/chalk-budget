@@ -1,14 +1,18 @@
 "use client";
 
 import {
-  Baby, Bus, CircleDashed, Fuel, Gamepad2, HeartPulse, Home,
-  PiggyBank, ShoppingBag, ShoppingBasket, UtensilsCrossed, Wallet,
+  Baby, Banknote, Bus, CircleDashed, Coins, Fuel, Gamepad2, Gift,
+  GraduationCap, HandCoins, Heart, HeartPulse, Home, PiggyBank, Plane,
+  Shirt, ShoppingBag, ShoppingBasket, ShoppingCart, Sparkles, SprayCan,
+  TrendingUp, Tv, Users, UtensilsCrossed, Wallet, Wifi,
   type LucideIcon
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
-  Baby, Bus, CircleDashed, Fuel, Gamepad2, HeartPulse, Home,
-  PiggyBank, ShoppingBag, ShoppingBasket, UtensilsCrossed, Wallet
+  Baby, Banknote, Bus, CircleDashed, Coins, Fuel, Gamepad2, Gift,
+  GraduationCap, HandCoins, Heart, HeartPulse, Home, PiggyBank, Plane,
+  Shirt, ShoppingBag, ShoppingBasket, ShoppingCart, Sparkles, SprayCan,
+  TrendingUp, Tv, Users, UtensilsCrossed, Wallet, Wifi
 };
 
 export function CategoryIcon({
