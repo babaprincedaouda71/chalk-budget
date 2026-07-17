@@ -6,15 +6,21 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import { Category, Transaction } from "./types";
 import { DEFAULT_CATEGORIES } from "./categories";
 
 /**
- * Persistance : localStorage (côté navigateur uniquement).
- * Pour une vraie base multi-appareils, remplacer load/save par des appels
- * à une API (ex. Vercel Postgres, Supabase) — l'interface du store ne change pas.
+ * Persistance : localStorage (source primaire, hors ligne d'abord) +
+ * synchronisation multi-appareils optionnelle via /api/sync.
+ *
+ * Sync : l'utilisateur saisit un code secret dans Paramètres ; l'état complet
+ * est poussé (avec un léger différé) après chaque modification et récupéré à
+ * l'ouverture. Conflits : "dernier écrit gagne" (horodatage updatedAt).
+ * Sans code — ou si le serveur n'a pas de base configurée — l'app reste
+ * 100 % locale : la sync ne doit jamais être requise pour fonctionner.
  */
 
 interface BudgetState {
@@ -22,6 +28,8 @@ interface BudgetState {
   categories: Category[];
   currency: string;
 }
+
+export type SyncStatus = "off" | "syncing" | "ok" | "error" | "unavailable";
 
 interface BudgetContextValue extends BudgetState {
   ready: boolean;
@@ -36,9 +44,15 @@ interface BudgetContextValue extends BudgetState {
   monthTransactions: Transaction[];
   totals: { income: number; expense: number; balance: number };
   expenseByCategory: { category: Category; total: number }[];
+  syncCode: string | null;
+  syncStatus: SyncStatus;
+  enableSync: (code: string) => Promise<void>;
+  disableSync: () => void;
 }
 
 const STORAGE_KEY = "chalk-budget-v1";
+const SYNC_CODE_KEY = "chalk-budget-sync-code";
+const PUSH_DEBOUNCE_MS = 1500;
 const BudgetContext = createContext<BudgetContextValue | null>(null);
 
 const uid = () =>
@@ -53,29 +67,146 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     categories: DEFAULT_CATEGORIES,
     currency: "€"
   });
+  const [syncCode, setSyncCodeState] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
 
-  // Chargement initial
+  // Horodatage de la dernière modification locale (persisté avec l'état).
+  const updatedAtRef = useRef(0);
+  // true pendant l'application d'un état distant : évite de le re-pousser
+  // avec un nouvel horodatage (ping-pong entre appareils).
+  const applyingRemoteRef = useRef(false);
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyRemote = useCallback((data: {
+    updatedAt: number;
+    transactions: Transaction[];
+    categories: Category[];
+    currency: string;
+  }) => {
+    applyingRemoteRef.current = true;
+    updatedAtRef.current = data.updatedAt;
+    setState({
+      transactions: data.transactions ?? [],
+      categories: data.categories?.length ? data.categories : DEFAULT_CATEGORIES,
+      currency: data.currency ?? "€"
+    });
+  }, []);
+
+  /** Récupère l'état distant ; l'applique s'il est plus récent que le local. */
+  const pullRemote = useCallback(
+    async (code: string) => {
+      setSyncStatus("syncing");
+      try {
+        const res = await fetch("/api/sync", {
+          headers: { "x-sync-code": code },
+          cache: "no-store"
+        });
+        if (res.status === 503) {
+          setSyncStatus("unavailable");
+          return;
+        }
+        if (!res.ok) throw new Error(`sync HTTP ${res.status}`);
+        const { data } = await res.json();
+        if (data && data.updatedAt > updatedAtRef.current) {
+          applyRemote(data);
+        }
+        setSyncStatus("ok");
+      } catch {
+        // Jamais bloquant : les données locales restent la référence.
+        setSyncStatus("error");
+      }
+    },
+    [applyRemote]
+  );
+
+  const pushRemote = useCallback(async (code: string, snapshot: BudgetState) => {
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch("/api/sync", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-sync-code": code },
+        body: JSON.stringify({ ...snapshot, updatedAt: updatedAtRef.current })
+      });
+      if (res.status === 503) {
+        setSyncStatus("unavailable");
+        return;
+      }
+      if (!res.ok) throw new Error(`sync HTTP ${res.status}`);
+      setSyncStatus("ok");
+    } catch {
+      setSyncStatus("error");
+    }
+  }, []);
+
+  // Chargement initial : localStorage, puis pull distant si un code est défini.
   useEffect(() => {
+    let code: string | null = null;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const saved = JSON.parse(raw) as BudgetState;
+        const saved = JSON.parse(raw) as BudgetState & { updatedAt?: number };
+        updatedAtRef.current = saved.updatedAt ?? 0;
         setState({
           transactions: saved.transactions ?? [],
           categories: saved.categories?.length ? saved.categories : DEFAULT_CATEGORIES,
           currency: saved.currency ?? "€"
         });
       }
+      code = localStorage.getItem(SYNC_CODE_KEY);
     } catch {
       /* stockage corrompu → état par défaut */
     }
+    if (code) {
+      setSyncCodeState(code);
+      void pullRemote(code);
+    }
     setReady(true);
-  }, []);
+  }, [pullRemote]);
 
-  // Sauvegarde à chaque changement
+  // Sauvegarde locale à chaque changement + push distant différé.
   useEffect(() => {
-    if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, ready]);
+    if (!ready) return;
+    if (applyingRemoteRef.current) {
+      // État venu du serveur : on le persiste localement sans le re-pousser.
+      applyingRemoteRef.current = false;
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...state, updatedAt: updatedAtRef.current })
+      );
+      return;
+    }
+    updatedAtRef.current = Date.now();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...state, updatedAt: updatedAtRef.current })
+    );
+    if (syncCode) {
+      if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+      pushTimerRef.current = setTimeout(() => {
+        void pushRemote(syncCode, state);
+      }, PUSH_DEBOUNCE_MS);
+    }
+  }, [state, ready, syncCode, pushRemote]);
+
+  const enableSync = useCallback(
+    async (code: string) => {
+      const trimmed = code.trim();
+      if (trimmed.length < 6) throw new Error("Code trop court (6 caractères minimum)");
+      localStorage.setItem(SYNC_CODE_KEY, trimmed);
+      // Réconciliation immédiate : le plus récent (local ou distant) gagne,
+      // puis l'effet de sauvegarde poussera l'état retenu.
+      await pullRemote(trimmed);
+      setSyncCodeState(trimmed);
+    },
+    [pullRemote]
+  );
+
+  const disableSync = useCallback(() => {
+    localStorage.removeItem(SYNC_CODE_KEY);
+    if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+    setSyncCodeState(null);
+    setSyncStatus("off");
+  }, []);
 
   const addTransactions = useCallback((txs: Omit<Transaction, "id">[]) => {
     setState((s) => ({
@@ -172,7 +303,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     resetAll,
     monthTransactions,
     totals,
-    expenseByCategory
+    expenseByCategory,
+    syncCode,
+    syncStatus,
+    enableSync,
+    disableSync
   };
 
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;

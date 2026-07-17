@@ -40,10 +40,19 @@ npm run dev
   la liste des catégories et le pie chart.
 
 ## Données
-Persistance : `localStorage` (clé `chalk-budget-v1`) — aucune donnée ne quitte
-l'appareil, sauf le texte envoyé à `/api/parse` (et à Google Gemini si la
-clé est configurée). Pour du multi-appareils, remplacez `lib/store.tsx` par des appels
-API (Vercel Postgres, Supabase…) : l'interface du store reste identique.
+Persistance : `localStorage` (clé `chalk-budget-v1`), source primaire — l'app
+fonctionne entièrement hors ligne. Ne quittent l'appareil que le texte envoyé
+à `/api/parse` (et à Google Gemini si la clé est configurée) et, si la
+synchronisation est activée, l'état du budget envoyé à `/api/sync`.
+
+### Synchronisation multi-appareils (optionnelle)
+Dans Paramètres, choisissez un code secret (≥ 6 caractères) et saisissez le
+même code sur chaque appareil : l'état complet est sauvegardé dans Upstash
+Redis via `/api/sync` (clé = SHA-256 du code, conflit résolu en « dernier
+écrit gagne »). Prérequis serveur : variables `UPSTASH_REDIS_REST_URL` et
+`UPSTASH_REDIS_REST_TOKEN` (intégration Upstash du Marketplace Vercel, ou
+console.upstash.com). Sans base configurée, la sync s'affiche « indisponible »
+et l'app reste 100 % locale.
 
 ## Transactions récurrentes
 Une transaction marquée « récurrente » est comptée dans son mois d'origine puis

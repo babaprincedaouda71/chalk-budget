@@ -28,12 +28,13 @@ There are no tests and no lint script configured.
 
 ## Architecture
 
-### State: single client-side store, localStorage persistence
-`lib/store.tsx` is the heart of the app. `BudgetProvider` (mounted in `app/layout.tsx`) holds all state — transactions, categories, currency, selected month — persists it to `localStorage` under key `chalk-budget-v1`, and exposes everything via the `useBudget()` hook, including derived data (`monthTransactions`, `totals`, `expenseByCategory`). There is no server-side data; the only API route is `/api/parse`. If multi-device sync is ever added, the plan is to swap the store's load/save internals while keeping the `useBudget()` interface identical.
+### State: single client-side store, localStorage-first with optional cloud sync
+`lib/store.tsx` is the heart of the app. `BudgetProvider` (mounted in `app/layout.tsx`) holds all state — transactions, categories, currency, selected month — persists it to `localStorage` under key `chalk-budget-v1`, and exposes everything via the `useBudget()` hook, including derived data (`monthTransactions`, `totals`, `expenseByCategory`).
 
 Key store behaviors:
 - **Recurring transactions**: a transaction with `recurring: true` counts in its origin month **and every later month** (computed in `monthTransactions`, not duplicated in storage).
 - Wait for `ready` before trusting store data (initial localStorage load happens in an effect).
+- **Multi-device sync (optional)**: the user sets a secret code (≥ 6 chars, stored in localStorage key `chalk-budget-sync-code`); the whole state is pulled from `/api/sync` on startup and pushed (debounced 1.5s) after each change, with last-write-wins conflict resolution via an `updatedAt` timestamp persisted alongside the state. `app/api/sync/route.ts` stores the blob in Upstash Redis (key = SHA-256 of the code; env `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, `KV_*` fallbacks). Without those env vars the route returns 503 and the store shows status `unavailable` — **localStorage always remains the source of truth; sync must never be required for the app to work** (same philosophy as the parser fallback). Beware the `applyingRemoteRef` guard in the store: it prevents a remote state application from being re-pushed with a fresh timestamp (device ping-pong).
 
 ### "Ajout magique" (natural-language transaction entry)
 The signature feature: the user types e.g. `"tomates, oignons 50, tondeuse 182"` and it becomes structured transactions. Flow:

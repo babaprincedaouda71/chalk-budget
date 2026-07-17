@@ -6,9 +6,37 @@ import { cn } from "@/lib/utils";
 
 const CURRENCIES = ["€", "$", "MAD", "£", "CHF", "CAD"];
 
+const SYNC_LABELS: Record<string, string> = {
+  syncing: "Synchronisation…",
+  ok: "Synchronisé ✓",
+  error: "Erreur réseau — vos données restent enregistrées sur cet appareil.",
+  unavailable: "Indisponible : aucune base de données configurée sur le serveur."
+};
+
 export default function SettingsPage() {
-  const { currency, setCurrency, transactions, resetAll } = useBudget();
+  const {
+    currency,
+    setCurrency,
+    transactions,
+    resetAll,
+    syncCode,
+    syncStatus,
+    enableSync,
+    disableSync
+  } = useBudget();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const activateSync = async () => {
+    setSyncError(null);
+    try {
+      await enableSync(codeInput);
+      setCodeInput("");
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : "Erreur inattendue");
+    }
+  };
 
   const exportJson = () => {
     const blob = new Blob(
@@ -68,6 +96,68 @@ export default function SettingsPage() {
             <code className="rounded bg-ink/10 px-1">.env.local.example</code>{" "}
             en <code className="rounded bg-ink/10 px-1">.env.local</code>.
           </p>
+        </div>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-inkSoft">
+          Synchronisation multi-appareils
+        </h2>
+        <div className="rounded-xl border border-ink/15 bg-white/40 p-3 text-sm leading-relaxed">
+          {syncCode ? (
+            <>
+              <p>
+                Activée — vos transactions sont sauvegardées dans le cloud et
+                accessibles depuis n&apos;importe quel appareil avec le même
+                code secret.
+              </p>
+              <p className="mt-2 font-medium">
+                {SYNC_LABELS[syncStatus] ?? ""}
+              </p>
+              <button
+                onClick={disableSync}
+                className="mt-3 w-full rounded-lg border border-ink/25 py-2.5 font-medium transition hover:border-ink/60"
+              >
+                Désactiver la synchronisation
+              </button>
+            </>
+          ) : (
+            <>
+              <p>
+                Choisissez un code secret (6 caractères minimum) et saisissez le
+                même code sur chaque appareil : vos transactions seront
+                sauvegardées dans le cloud et synchronisées. Sans code, elles
+                restent uniquement sur cet appareil.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="password"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  placeholder="Code secret…"
+                  autoComplete="off"
+                  className="min-w-0 flex-1 rounded-lg border border-ink/25 bg-white/60 px-3 py-2.5 text-ink placeholder:text-inkSoft/70 focus:border-ink/60 focus:outline-none"
+                />
+                <button
+                  onClick={activateSync}
+                  disabled={codeInput.trim().length < 6 || syncStatus === "syncing"}
+                  className="rounded-lg bg-ink px-4 py-2.5 font-bold text-paper transition disabled:opacity-40"
+                >
+                  Activer
+                </button>
+              </div>
+              {syncError && (
+                <p className="mt-2 text-brickDeep">{syncError}</p>
+              )}
+              {syncStatus === "unavailable" && (
+                <p className="mt-2 text-brickDeep">{SYNC_LABELS.unavailable}</p>
+              )}
+              <p className="mt-2 text-xs text-inkSoft">
+                Gardez ce code précieusement : il est la seule clé d&apos;accès à
+                vos données synchronisées.
+              </p>
+            </>
+          )}
         </div>
       </section>
 
