@@ -1,37 +1,189 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Plus, Repeat, Search, X } from "lucide-react";
+import {
+  Check, ChevronDown, ChevronLeft, ChevronRight, Plus, Repeat, Search, X
+} from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { CategoryPicker } from "@/components/category-picker";
 import { TransactionForm } from "@/components/transaction-form";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { MONTH_NAMES, formatAmount, useBudget } from "@/lib/store";
+import { Occurrence, occurrencesInRange } from "@/lib/occurrences";
 import { Transaction, TxType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | TxType;
+type Period = "day" | "week" | "month" | "year";
+type SortKey = "date" | "amount" | "category";
+type MenuName = "period" | "sort" | "export" | null;
+
+const PERIOD_LABELS: Record<Period, string> = {
+  day: "Jour",
+  week: "Semaine",
+  month: "Mois",
+  year: "Année"
+};
+
+const SORT_LABELS: Record<SortKey, string> = {
+  date: "Date (récent d'abord)",
+  amount: "Montant (décroissant)",
+  category: "Catégorie (A → Z)"
+};
+
+/** Menu contextuel léger (thème carnet) ancré sous son bouton. */
+function Menu({
+  open,
+  onClose,
+  title,
+  align = "left",
+  children
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  align?: "left" | "right" | "center";
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
+      <div
+        role="menu"
+        className={cn(
+          "absolute top-full z-50 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-ink/20 bg-paper py-1 shadow-xl",
+          align === "right" && "right-0",
+          align === "left" && "left-0",
+          align === "center" && "left-1/2 -translate-x-1/2"
+        )}
+      >
+        <p className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-inkSoft">
+          {title}
+        </p>
+        {children}
+      </div>
+    </>
+  );
+}
+
+function MenuItem({
+  label,
+  selected,
+  onClick
+}: {
+  label: string;
+  selected?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-ink/5",
+        selected && "font-bold"
+      )}
+    >
+      <span className="w-4">{selected && <Check className="h-4 w-4" />}</span>
+      {label}
+    </button>
+  );
+}
 
 export default function TransactionsPage() {
-  const { monthTransactions, categories, currency, month, setMonth } = useBudget();
+  const {
+    transactions, categories, currency, month, setMonth, deleteTransaction
+  } = useBudget();
+
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [filterPickerOpen, setFilterPickerOpen] = useState(false);
+  const [period, setPeriod] = useState<Period>("month");
+  const [anchor, setAnchor] = useState<Date>(() => {
+    const now = new Date();
+    return now.getFullYear() === month.year && now.getMonth() === month.month
+      ? now
+      : new Date(month.year, month.month, 1);
+  });
+  const [sort, setSort] = useState<SortKey>("date");
+  const [openMenu, setOpenMenu] = useState<MenuName>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [armedDelete, setArmedDelete] = useState<string | null>(null);
 
   const cat = (id: string) => categories.find((c) => c.id === id);
 
-  const setType = (t: TypeFilter) => {
-    setTypeFilter(t);
-    setCategoryFilter(null); // la catégorie filtrée dépend du type
+  // Bornes [start, end) de la période affichée.
+  const range = useMemo(() => {
+    const a = anchor;
+    if (period === "day") {
+      const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+      return { start, end: new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1) };
+    }
+    if (period === "week") {
+      const dow = (a.getDay() + 6) % 7; // semaine commençant le lundi
+      const start = new Date(a.getFullYear(), a.getMonth(), a.getDate() - dow);
+      return {
+        start,
+        end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7)
+      };
+    }
+    if (period === "year") {
+      return {
+        start: new Date(a.getFullYear(), 0, 1),
+        end: new Date(a.getFullYear() + 1, 0, 1)
+      };
+    }
+    return {
+      start: new Date(a.getFullYear(), a.getMonth(), 1),
+      end: new Date(a.getFullYear(), a.getMonth() + 1, 1)
+    };
+  }, [anchor, period]);
+
+  const rangeLabel = useMemo(() => {
+    if (period === "day") {
+      return anchor.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      });
+    }
+    if (period === "week") {
+      const endIncl = new Date(range.end);
+      endIncl.setDate(endIncl.getDate() - 1);
+      return `${range.start.getDate()} – ${endIncl.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      })}`;
+    }
+    if (period === "year") return String(anchor.getFullYear());
+    return `${MONTH_NAMES[anchor.getMonth()]} ${anchor.getFullYear()}`;
+  }, [period, anchor, range]);
+
+  const shift = (delta: number) => {
+    const a = new Date(anchor);
+    if (period === "day") a.setDate(a.getDate() + delta);
+    else if (period === "week") a.setDate(a.getDate() + 7 * delta);
+    else if (period === "year") a.setFullYear(a.getFullYear() + delta);
+    else a.setMonth(a.getMonth() + delta, 1);
+    setAnchor(a);
+    // Garde le tableau noir (dashboard) sur le même mois.
+    setMonth({ year: a.getFullYear(), month: a.getMonth() });
   };
+
+  const occurrences = useMemo(
+    () => occurrencesInRange(transactions, range.start, range.end),
+    [transactions, range]
+  );
 
   // Recherche (note + nom de catégorie) et filtres type/catégorie.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return monthTransactions.filter((t) => {
+    return occurrences.filter(({ tx: t }) => {
       if (typeFilter !== "all" && t.type !== typeFilter) return false;
       if (categoryFilter && t.categoryId !== categoryFilter) return false;
       if (q) {
@@ -41,53 +193,245 @@ export default function TransactionsPage() {
       }
       return true;
     });
-  }, [monthTransactions, typeFilter, categoryFilter, search, categories]);
+  }, [occurrences, typeFilter, categoryFilter, search, categories]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const name = (o: Occurrence) => cat(o.tx.categoryId)?.name ?? "";
+    if (sort === "amount") arr.sort((a, b) => b.tx.amount - a.tx.amount);
+    else if (sort === "category")
+      arr.sort(
+        (a, b) => name(a).localeCompare(name(b), "fr") || b.date.localeCompare(a.date)
+      );
+    else arr.sort((a, b) => b.date.localeCompare(a.date));
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sort, categories]);
+
+  const totals = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const { tx } of filtered) {
+      if (tx.type === "income") income += tx.amount;
+      else expense += tx.amount;
+    }
+    return { income, expense };
+  }, [filtered]);
 
   const hasFilters = typeFilter !== "all" || !!categoryFilter || !!search.trim();
   const filterCategory = categoryFilter ? cat(categoryFilter) : null;
 
-  // Groupement par date (les récurrentes d'un mois antérieur : groupe dédié)
-  const groups = useMemo(() => {
-    const map = new Map<string, Transaction[]>();
-    for (const t of filtered) {
-      const d = new Date(t.date + "T00:00:00");
-      const inMonth = d.getFullYear() === month.year && d.getMonth() === month.month;
-      const key = inMonth ? t.date : "recurring";
-      map.set(key, [...(map.get(key) ?? []), t]);
-    }
-    return [...map.entries()].sort((a, b) =>
-      a[0] === "recurring" ? 1 : b[0] === "recurring" ? -1 : b[0].localeCompare(a[0])
-    );
-  }, [filtered, month]);
-
-  const dateLabel = (key: string) =>
-    key === "recurring"
-      ? "Récurrentes (mois antérieurs)"
-      : new Date(key + "T00:00:00").toLocaleDateString("fr-FR", {
-          weekday: "long",
-          day: "numeric",
-          month: "long"
-        });
-
-  const shift = (delta: number) => {
-    const d = new Date(month.year, month.month + delta, 1);
-    setMonth({ year: d.getFullYear(), month: d.getMonth() });
+  const setType = (t: TypeFilter) => {
+    setTypeFilter(t);
+    setCategoryFilter(null); // la catégorie filtrée dépend du type
   };
+
+  const dateLabel = (d: string) =>
+    new Date(d + "T00:00:00").toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+
+  /* ---------- Export ---------- */
+
+  const csvField = (s: string) => `"${s.replace(/"/g, '""')}"`;
+
+  const exportCsv = () => {
+    const sep = ";";
+    const lines = [
+      ["Date", "Type", "Catégorie", "Note", "Montant", "Devise"].join(sep)
+    ];
+    for (const o of sorted) {
+      lines.push(
+        [
+          o.date,
+          o.tx.type === "income" ? "Revenu" : "Dépense",
+          csvField(cat(o.tx.categoryId)?.name ?? ""),
+          csvField(o.tx.note ?? ""),
+          String(o.tx.amount).replace(".", ","),
+          currency
+        ].join(sep)
+      );
+    }
+    // BOM UTF-8 pour qu'Excel détecte l'encodage
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], {
+      type: "text/csv;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ardoise-transactions-${rangeLabel.replace(/[^\p{L}\d]+/gu, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const escHtml = (s: string) =>
+    s.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]!));
+
+  /** PDF via la boîte d'impression (Enregistrer en PDF) dans une iframe dédiée. */
+  const exportPdf = () => {
+    const rows = sorted
+      .map((o) => {
+        const c = cat(o.tx.categoryId);
+        return `<tr><td>${o.date}</td><td>${escHtml(c?.name ?? "")}</td><td>${escHtml(
+          o.tx.note ?? ""
+        )}</td><td class="${o.tx.type}">${formatAmount(o.tx.amount, currency)}</td></tr>`;
+      })
+      .join("");
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Ardoise — ${escHtml(
+      rangeLabel
+    )}</title><style>
+      body{font-family:system-ui,sans-serif;padding:24px;color:#20242c}
+      h1{font-size:18px;margin:0 0 4px}
+      p{color:#666;font-size:12px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th,td{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
+      th:last-child,td:last-child{text-align:right;white-space:nowrap}
+      .income{color:#15803d}.expense{color:#b0442c}
+    </style></head><body>
+    <h1>Ardoise — Transactions (${escHtml(rangeLabel)})</h1>
+    <p>Revenus : ${formatAmount(totals.income, currency)} · Dépenses : ${formatAmount(
+      totals.expense,
+      currency
+    )}</p>
+    <table><thead><tr><th>Date</th><th>Catégorie</th><th>Note</th><th>Montant</th></tr></thead>
+    <tbody>${rows}</tbody></table></body></html>`;
+
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "100%";
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 2000);
+  };
+
+  /* ---------- Rendu ---------- */
 
   return (
     <div className="paper-bg notebook-margin min-h-dvh text-ink">
-      {/* En-tête du carnet */}
-      <header className="flex items-center justify-between border-b-2 border-ink/15 px-4 py-4 pl-12">
-        <button onClick={() => shift(-1)} className="text-inkSoft hover:text-ink" aria-label="Mois précédent">
-          ←
+      {/* En-tête : mode édition / période / ajout */}
+      <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-2 pl-12">
+        <button
+          onClick={() => {
+            setEditMode((v) => !v);
+            setArmedDelete(null);
+          }}
+          className={cn(
+            "text-sm font-medium transition",
+            editMode ? "font-bold text-ink" : "text-inkSoft hover:text-ink"
+          )}
+        >
+          {editMode ? "OK" : "Modifier"}
         </button>
-        <h1 className="text-xl font-bold">
-          {MONTH_NAMES[month.month]} {month.year}
-        </h1>
-        <button onClick={() => shift(1)} className="text-inkSoft hover:text-ink" aria-label="Mois suivant">
-          →
+
+        <div className="relative">
+          <button
+            onClick={() => setOpenMenu(openMenu === "period" ? null : "period")}
+            className="flex items-center gap-1 rounded-lg border border-ink/20 bg-white/50 px-4 py-1.5 font-bold transition hover:border-ink/50"
+          >
+            {rangeLabel}
+            <ChevronDown className="h-4 w-4 text-inkSoft" />
+          </button>
+          <Menu
+            open={openMenu === "period"}
+            onClose={() => setOpenMenu(null)}
+            title="Afficher par"
+            align="center"
+          >
+            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+              <MenuItem
+                key={p}
+                label={PERIOD_LABELS[p]}
+                selected={period === p}
+                onClick={() => {
+                  setPeriod(p);
+                  setOpenMenu(null);
+                }}
+              />
+            ))}
+          </Menu>
+        </div>
+
+        <button
+          onClick={() => setAddOpen(true)}
+          aria-label="Ajouter une transaction"
+          className="rounded-full p-1.5 text-ink transition hover:bg-ink/10"
+        >
+          <Plus className="h-6 w-6" strokeWidth={2.2} />
         </button>
       </header>
+
+      {/* Barre d'outils : tri / navigation / export */}
+      <div className="flex items-center justify-between border-b-2 border-ink/15 px-4 pb-2 pl-12">
+        <div className="relative">
+          <button
+            onClick={() => setOpenMenu(openMenu === "sort" ? null : "sort")}
+            className="text-sm font-medium text-inkSoft transition hover:text-ink"
+          >
+            Trier
+          </button>
+          <Menu open={openMenu === "sort"} onClose={() => setOpenMenu(null)} title="Trier par">
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+              <MenuItem
+                key={k}
+                label={SORT_LABELS[k]}
+                selected={sort === k}
+                onClick={() => {
+                  setSort(k);
+                  setOpenMenu(null);
+                }}
+              />
+            ))}
+          </Menu>
+        </div>
+
+        <div className="flex items-center gap-8">
+          <button onClick={() => shift(-1)} aria-label="Période précédente" className="text-inkSoft hover:text-ink">
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button onClick={() => shift(1)} aria-label="Période suivante" className="text-inkSoft hover:text-ink">
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setOpenMenu(openMenu === "export" ? null : "export")}
+            className="text-sm font-medium text-inkSoft transition hover:text-ink"
+          >
+            Exporter
+          </button>
+          <Menu
+            open={openMenu === "export"}
+            onClose={() => setOpenMenu(null)}
+            title="Exporter en"
+            align="right"
+          >
+            <MenuItem
+              label="PDF"
+              onClick={() => {
+                setOpenMenu(null);
+                exportPdf();
+              }}
+            />
+            <MenuItem
+              label="CSV"
+              onClick={() => {
+                setOpenMenu(null);
+                exportCsv();
+              }}
+            />
+          </Menu>
+        </div>
+      </div>
 
       {/* Recherche + filtres */}
       <div className="border-b border-ink/10 py-3 pl-12 pr-4">
@@ -156,61 +500,99 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="notebook-lines min-h-[70vh] pl-12 pr-4">
-        {groups.length === 0 && (
+      {/* Totaux de la période : revenus | dépenses */}
+      <div className="flex text-center text-sm font-bold tabular-nums">
+        <div className="flex-1 bg-green-700/10 py-2 text-green-700">
+          {formatAmount(totals.income, currency)}
+        </div>
+        <div className="flex-1 bg-brickDeep/10 py-2 text-brickDeep">
+          {formatAmount(totals.expense, currency)}
+        </div>
+      </div>
+
+      {/* Liste plate des transactions */}
+      <div className="notebook-lines min-h-[60vh] pb-28 pl-12 pr-4">
+        {sorted.length === 0 && (
           <p className="pt-10 text-center text-inkSoft">
             {hasFilters
               ? "Aucune transaction ne correspond à la recherche."
-              : "Page blanche : aucune transaction ce mois-ci."}
+              : "Page blanche : aucune transaction sur cette période."}
           </p>
         )}
 
-        {groups.map(([key, txs]) => (
-          <section key={key} aria-label={dateLabel(key)}>
-            <h2 className="flex h-10 items-end pb-1 text-xs font-bold uppercase tracking-wider text-inkSoft">
-              {dateLabel(key)}
-            </h2>
-            <ul>
-              {txs.map((t) => {
-                const c = cat(t.categoryId);
-                return (
-                  <li key={t.id}>
-                    <button
-                      onClick={() => setEditing(t)}
-                      className="flex h-10 w-full items-center gap-3 text-left hover:bg-ink/5 focus-visible:outline-none focus-visible:bg-ink/5"
-                    >
-                      <CategoryIcon name={c?.icon ?? "CircleDashed"} className="h-4 w-4 shrink-0 text-inkSoft" />
-                      <span className="min-w-0 flex-1 truncate">
-                        {t.note || c?.name || "—"}
-                        {t.note && c && (
-                          <span className="ml-2 text-xs text-inkSoft">{c.name}</span>
-                        )}
-                      </span>
-                      {t.recurring && <Repeat className="h-3.5 w-3.5 shrink-0 text-inkSoft" aria-label="Récurrente" />}
+        <ul>
+          {sorted.map((o) => {
+            const t = o.tx;
+            const c = cat(t.categoryId);
+            const armed = armedDelete === o.key;
+            return (
+              <li key={o.key} className="flex h-20 items-center gap-3">
+                {editMode && (
+                  <button
+                    onClick={() => setArmedDelete(armed ? null : o.key)}
+                    aria-label={armed ? "Annuler la suppression" : "Supprimer"}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 text-sm font-bold leading-none text-white"
+                  >
+                    −
+                  </button>
+                )}
+
+                <button
+                  onClick={() => !editMode && setEditing(t)}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-3 text-left",
+                    !editMode && "hover:bg-ink/5 focus-visible:bg-ink/5 focus-visible:outline-none"
+                  )}
+                >
+                  <CategoryIcon
+                    name={c?.icon ?? "CircleDashed"}
+                    className="h-6 w-6 shrink-0 text-inkSoft"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 truncate font-medium">
+                      <span className="truncate">{t.note || c?.name || "—"}</span>
+                      {t.recurring && (
+                        <Repeat className="h-3.5 w-3.5 shrink-0 text-inkSoft" aria-label="Récurrente" />
+                      )}
+                    </span>
+                    <span className="block truncate text-xs capitalize text-inkSoft">
+                      {dateLabel(o.date)}
+                    </span>
+                  </span>
+
+                  {!armed && (
+                    <>
                       <span
                         className={cn(
                           "shrink-0 font-bold tabular-nums",
                           t.type === "income" ? "text-green-700" : "text-brickDeep"
                         )}
                       >
-                        {t.type === "income" ? "+" : "−"} {formatAmount(t.amount, currency)}
+                        {formatAmount(t.amount, currency)}
                       </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-      </div>
+                      {!editMode && (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-inkSoft/50" />
+                      )}
+                    </>
+                  )}
+                </button>
 
-      <button
-        onClick={() => setAddOpen(true)}
-        aria-label="Ajouter une transaction"
-        className="fixed bottom-24 right-1/2 z-30 translate-x-[calc(theme(maxWidth.app)/2-4rem)] rounded-full bg-ink p-4 text-paper shadow-xl transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-      >
-        <Plus className="h-6 w-6" strokeWidth={2.5} />
-      </button>
+                {armed && (
+                  <button
+                    onClick={() => {
+                      deleteTransaction(t.id);
+                      setArmedDelete(null);
+                    }}
+                    className="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white"
+                  >
+                    Supprimer
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
