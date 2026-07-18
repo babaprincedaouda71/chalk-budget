@@ -267,50 +267,67 @@ export default function TransactionsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const escHtml = (s: string) =>
-    s.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]!));
+  /**
+   * PDF généré côté client (jsPDF, importé à la demande) : fonctionne aussi
+   * dans la PWA iOS, où la boîte d'impression n'est pas disponible.
+   */
+  const exportPdf = async () => {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    // Les espaces fines insécables de toLocaleString ne sont pas dans les
+    // polices standard du PDF.
+    const clean = (s: string) => s.replace(/[\u202F\u00A0]/g, " ");
+    const money = (n: number) => clean(formatAmount(n, currency));
+    const left = 15;
+    const right = 195;
+    let y = 18;
 
-  /** PDF via la boîte d'impression (Enregistrer en PDF) dans une iframe dédiée. */
-  const exportPdf = () => {
-    const rows = sorted
-      .map((o) => {
-        const c = cat(o.tx.categoryId);
-        return `<tr><td>${o.date}</td><td>${escHtml(c?.name ?? "")}</td><td>${escHtml(
-          o.tx.note ?? ""
-        )}</td><td class="${o.tx.type}">${formatAmount(o.tx.amount, currency)}</td></tr>`;
-      })
-      .join("");
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Ardoise — ${escHtml(
-      rangeLabel
-    )}</title><style>
-      body{font-family:system-ui,sans-serif;padding:24px;color:#20242c}
-      h1{font-size:18px;margin:0 0 4px}
-      p{color:#666;font-size:12px;margin:0 0 16px}
-      table{width:100%;border-collapse:collapse;font-size:13px}
-      th,td{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
-      th:last-child,td:last-child{text-align:right;white-space:nowrap}
-      .income{color:#15803d}.expense{color:#b0442c}
-    </style></head><body>
-    <h1>Ardoise — Transactions (${escHtml(rangeLabel)})</h1>
-    <p>Revenus : ${formatAmount(totals.income, currency)} · Dépenses : ${formatAmount(
-      totals.expense,
-      currency
-    )}</p>
-    <table><thead><tr><th>Date</th><th>Catégorie</th><th>Note</th><th>Montant</th></tr></thead>
-    <tbody>${rows}</tbody></table></body></html>`;
+    doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(32);
+    doc.text(`Ardoise — Transactions (${rangeLabel})`, left, y);
+    y += 7;
+    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(110);
+    doc.text(
+      `Revenus : ${money(totals.income)}   ·   Dépenses : ${money(totals.expense)}`,
+      left,
+      y
+    );
+    y += 9;
 
-    const frame = document.createElement("iframe");
-    frame.style.position = "fixed";
-    frame.style.right = "100%";
-    document.body.appendChild(frame);
-    const doc = frame.contentDocument;
-    if (!doc) return;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    frame.contentWindow?.focus();
-    frame.contentWindow?.print();
-    setTimeout(() => frame.remove(), 2000);
+    const tableHeader = () => {
+      doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(80);
+      doc.text("Date", left, y);
+      doc.text("Catégorie", left + 27, y);
+      doc.text("Note", left + 77, y);
+      doc.text("Montant", right, y, { align: "right" });
+      y += 2;
+      doc.setDrawColor(180);
+      doc.line(left, y, right, y);
+      y += 5;
+      doc.setFont("helvetica", "normal").setFontSize(9);
+    };
+    tableHeader();
+
+    for (const o of sorted) {
+      const c = cat(o.tx.categoryId);
+      const catLines = doc.splitTextToSize(clean(c?.name ?? ""), 46) as string[];
+      const noteLines = doc.splitTextToSize(clean(o.tx.note ?? ""), 68) as string[];
+      const rowH = Math.max(1, catLines.length, noteLines.length) * 4.5 + 2.5;
+      if (y + rowH > 285) {
+        doc.addPage();
+        y = 15;
+        tableHeader();
+      }
+      doc.setTextColor(40);
+      doc.text(o.date, left, y);
+      doc.text(catLines, left + 27, y);
+      doc.text(noteLines, left + 77, y);
+      if (o.tx.type === "income") doc.setTextColor(21, 128, 61);
+      else doc.setTextColor(176, 68, 44);
+      doc.text(money(o.tx.amount), right, y, { align: "right" });
+      y += rowH;
+    }
+
+    doc.save(`ardoise-transactions-${rangeLabel.replace(/[^\p{L}\d]+/gu, "-")}.pdf`);
   };
 
   /* ---------- Rendu ---------- */
