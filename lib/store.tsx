@@ -46,6 +46,8 @@ interface BudgetContextValue extends BudgetState {
   addCategory: (c: Omit<Category, "id">) => void;
   updateCategory: (c: Category) => void;
   deleteCategory: (id: string) => void;
+  /** Import en bloc : nouvelles catégories + transactions (ids générés ici). */
+  importBundle: (cats: Category[], txs: Omit<Transaction, "id">[]) => void;
   setCurrency: (c: string) => void;
   resetAll: () => void;
   monthTransactions: Transaction[];
@@ -386,6 +388,23 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const importBundle = useCallback(
+    (cats: Category[], txs: Omit<Transaction, "id">[]) => {
+      setState((s) => ({
+        ...s,
+        categories: [
+          ...s.categories,
+          ...cats.filter((c) => !s.categories.some((x) => x.id === c.id))
+        ],
+        transactions: [
+          ...s.transactions,
+          ...txs.map((t) => ({ ...t, id: uid() }))
+        ]
+      }));
+    },
+    []
+  );
+
   const setCurrency = useCallback(
     (currency: string) => setState((s) => ({ ...s, currency })),
     []
@@ -453,6 +472,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     addCategory,
     updateCategory,
     deleteCategory,
+    importBundle,
     setCurrency,
     resetAll,
     monthTransactions,

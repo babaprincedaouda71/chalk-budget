@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useBudget } from "@/lib/store";
+import { ImportResult, parseImportFile } from "@/lib/importer";
 import { cn } from "@/lib/utils";
 
 const CURRENCIES = ["€", "$", "MAD", "FCFA", "£", "CHF", "CAD"];
@@ -18,6 +20,8 @@ export default function SettingsPage() {
     currency,
     setCurrency,
     transactions,
+    categories,
+    importBundle,
     resetAll,
     syncCode,
     syncStatus,
@@ -27,6 +31,53 @@ export default function SettingsPage() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Import de données (CSV d'une app tierce ou JSON exporté d'ici)
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<(ImportResult & { duplicates: number }) | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importDone, setImportDone] = useState<string | null>(null);
+
+  const txKey = (t: { date: string; amount: number; type: string; note?: string }) =>
+    `${t.date}|${t.amount}|${t.type}|${t.note ?? ""}`;
+
+  const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permet de re-choisir le même fichier
+    if (!file) return;
+    setImportError(null);
+    setImportDone(null);
+    try {
+      const result = parseImportFile(await file.text(), categories);
+      const existing = new Set(transactions.map(txKey));
+      const fresh = result.transactions.filter((t) => !existing.has(txKey(t)));
+      setPreview({
+        ...result,
+        transactions: fresh,
+        duplicates: result.transactions.length - fresh.length
+      });
+    } catch {
+      setImportError(
+        "Fichier non reconnu : un export CSV (avec colonnes date et montant) ou JSON est attendu."
+      );
+    }
+  };
+
+  const confirmImport = () => {
+    if (!preview) return;
+    // Ne crée que les catégories encore référencées après déduplication.
+    const usedIds = new Set(preview.transactions.map((t) => t.categoryId));
+    importBundle(
+      preview.newCategories.filter((c) => usedIds.has(c.id)),
+      preview.transactions
+    );
+    setImportDone(
+      `✓ ${preview.transactions.length} transaction${
+        preview.transactions.length > 1 ? "s" : ""
+      } importée${preview.transactions.length > 1 ? "s" : ""}.`
+    );
+    setPreview(null);
+  };
 
   const activateSync = async () => {
     setSyncError(null);
@@ -176,6 +227,27 @@ export default function SettingsPage() {
           >
             Exporter en JSON
           </button>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,.json,text/csv,application/json,text/plain"
+            className="hidden"
+            onChange={onImportFile}
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="rounded-lg border border-ink/25 bg-white/40 py-2.5 font-medium transition hover:border-ink/60"
+          >
+            Importer (CSV ou JSON)…
+          </button>
+          {importError && <p className="text-sm text-brickDeep">{importError}</p>}
+          {importDone && <p className="text-sm font-medium text-green-700">{importDone}</p>}
+          <p className="text-xs text-inkSoft">
+            Import : export CSV d&apos;une autre app (Spending Tracker, banque…)
+            ou sauvegarde JSON de cette app. Les catégories sont reconnues par
+            leur nom ; les manquantes sont créées et les doublons ignorés.
+          </p>
           {!confirmReset ? (
             <button
               onClick={() => setConfirmReset(true)}
@@ -204,6 +276,62 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
+
+      {/* Aperçu d'import : confirmation avant écriture */}
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent>
+          <DialogTitle>Importer des transactions</DialogTitle>
+          {preview && (
+            <div className="space-y-3 text-sm">
+              <p>
+                <strong>{preview.transactions.length}</strong> transaction
+                {preview.transactions.length > 1 ? "s" : ""} à importer (
+                {preview.transactions.filter((t) => t.type === "income").length} revenu
+                {preview.transactions.filter((t) => t.type === "income").length > 1 ? "s" : ""},{" "}
+                {preview.transactions.filter((t) => t.type === "expense").length} dépense
+                {preview.transactions.filter((t) => t.type === "expense").length > 1 ? "s" : ""}
+                ).
+              </p>
+              {preview.duplicates > 0 && (
+                <p className="text-inkSoft">
+                  {preview.duplicates} doublon{preview.duplicates > 1 ? "s" : ""} ignoré
+                  {preview.duplicates > 1 ? "s" : ""} (déjà présent
+                  {preview.duplicates > 1 ? "s" : ""}).
+                </p>
+              )}
+              {preview.skipped > 0 && (
+                <p className="text-inkSoft">
+                  {preview.skipped} ligne{preview.skipped > 1 ? "s" : ""} illisible
+                  {preview.skipped > 1 ? "s" : ""} ignorée{preview.skipped > 1 ? "s" : ""}.
+                </p>
+              )}
+              {preview.newCategories.length > 0 && (
+                <p>
+                  Nouvelles catégories créées :{" "}
+                  <span className="text-inkSoft">
+                    {preview.newCategories.map((c) => c.name).join(", ")}
+                  </span>
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setPreview(null)}
+                  className="flex-1 rounded-lg border border-ink/25 py-2.5"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmImport}
+                  disabled={preview.transactions.length === 0}
+                  className="flex-1 rounded-lg bg-ink py-2.5 font-bold text-paper disabled:opacity-40"
+                >
+                  Importer
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
