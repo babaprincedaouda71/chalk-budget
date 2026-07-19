@@ -29,11 +29,16 @@ export default function DashboardPage() {
     .filter((e) => e.total > 0);
 
   return (
-    <div className="board-bg wood-frame min-h-dvh space-y-5 pb-8 pt-5 text-chalk">
-      <MonthSelector />
-      <RatioBar />
-      <SmartInput />
+    <div className="board-bg wood-frame flex min-h-0 flex-1 flex-col pt-5 text-chalk">
+      {/* Partie fixe : mois, ratio, ajout magique */}
+      <div className="space-y-5">
+        <MonthSelector />
+        <RatioBar />
+        <SmartInput />
+      </div>
 
+      {/* Partie défilante : totaux par catégorie + camembert */}
+      <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pb-28">
       {/* Agrégation par catégorie, écrite « à la craie » */}
       <section aria-label="Totaux par catégorie" className="px-5">
         {!ready ? (
@@ -82,6 +87,7 @@ export default function DashboardPage() {
       </section>
 
       <ExpensePieChart />
+      </div>
 
       {/* Bouton flottant d'ajout manuel */}
       <button

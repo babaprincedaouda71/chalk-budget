@@ -96,7 +96,8 @@ export default function CategoriesPage() {
   );
 
   return (
-    <div className="paper-bg min-h-dvh px-4 pt-5 text-ink">
+    <div className="paper-bg flex min-h-0 flex-1 flex-col px-4 pt-5 text-ink">
+      {/* En-tête fixe ; la liste défile en dessous */}
       <h1 className="mb-4 text-xl font-bold">Catégories</h1>
       <p className="mb-4 text-sm text-inkSoft">
         Touchez une catégorie pour la modifier ou la supprimer. Les mots-clés
@@ -104,15 +105,17 @@ export default function CategoriesPage() {
         d&apos;un article saisi en vrac.
       </p>
 
-      <Section kind="expense" title="Dépenses" />
-      <Section kind="income" title="Revenus" />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28">
+        <Section kind="expense" title="Dépenses" />
+        <Section kind="income" title="Revenus" />
 
-      <button
-        onClick={startCreate}
-        className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink/30 py-3 font-medium text-inkSoft transition hover:border-ink/60 hover:text-ink"
-      >
-        <Plus className="h-4 w-4" /> Nouvelle catégorie
-      </button>
+        <button
+          onClick={startCreate}
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink/30 py-3 font-medium text-inkSoft transition hover:border-ink/60 hover:text-ink"
+        >
+          <Plus className="h-4 w-4" /> Nouvelle catégorie
+        </button>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

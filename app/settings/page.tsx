@@ -103,9 +103,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="paper-bg min-h-dvh px-4 pt-5 text-ink">
+    <div className="paper-bg flex min-h-0 flex-1 flex-col px-4 pt-5 text-ink">
+      {/* Titre fixe ; le contenu défile en dessous */}
       <h1 className="mb-5 text-xl font-bold">Paramètres</h1>
 
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28">
       <section className="mb-6">
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-inkSoft">
           Devise par défaut
@@ -275,6 +277,7 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
+      </div>
 
       {/* Aperçu d'import : confirmation avant écriture */}
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>

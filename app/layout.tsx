@@ -48,10 +48,11 @@ export default function RootLayout({
       <body>
         <BudgetProvider>
           {/* Cadre mobile : largeur max centrée sur desktop */}
-          <div className="relative mx-auto flex min-h-dvh w-full max-w-app flex-col shadow-2xl">
-            {/* pt : réserve la zone de l'encoche / barre d'état (PWA plein écran) ;
-                pb : dégage la Tab Bar fixe et la barre d'accueil. */}
-            <main className="flex-1 pb-24 pt-[env(safe-area-inset-top)]">
+          <div className="relative mx-auto flex h-dvh w-full max-w-app flex-col overflow-hidden shadow-2xl">
+            {/* pt : réserve la zone de l'encoche / barre d'état (PWA plein
+                écran). Chaque page gère son propre défilement interne ; les
+                zones défilantes prévoient un pb suffisant pour la Tab Bar. */}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
               {children}
             </main>
             <TabBar />
