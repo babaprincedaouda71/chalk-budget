@@ -3,10 +3,10 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatAmount, useBudget } from "@/lib/store";
 
-/** Palette "craies de couleur" — lisible sur fond tableau noir. */
+/** Palette moderne — lisible sur la surface sombre du tableau de bord. */
 const CHALK_COLORS = [
-  "#9ED8A4", "#D9765C", "#F2D06B", "#8EC7E8", "#C9A2E0",
-  "#E8A87C", "#7FD6C2", "#E890B0", "#B5C97A", "#A8B8D8"
+  "#34D399", "#FB7185", "#FBBF24", "#38BDF8", "#A78BFA",
+  "#FB923C", "#2DD4BF", "#F472B6", "#A3E635", "#818CF8"
 ];
 
 export function ExpensePieChart() {
@@ -15,9 +15,7 @@ export function ExpensePieChart() {
   if (expenseByCategory.length === 0) {
     return (
       <div className="px-4 py-8 text-center">
-        <p className="chalk-text text-xl text-chalkDim">
-          Aucune dépense ce mois-ci.
-        </p>
+        <p className="text-sm text-chalkDim">Aucune dépense ce mois-ci.</p>
         <p className="mt-1 text-xs text-chalkDim/60">
           Ajoutez un ticket via l&apos;ajout magique ou le bouton +.
         </p>
@@ -33,8 +31,13 @@ export function ExpensePieChart() {
   }));
 
   return (
-    <section aria-label="Répartition des dépenses" className="px-4">
-      <h2 className="chalk-text mb-1 text-2xl text-chalk">Répartition</h2>
+    <section
+      aria-label="Répartition des dépenses"
+      className="mx-4 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10"
+    >
+      <h2 className="mb-1 text-sm font-bold uppercase tracking-wider text-chalkDim">
+        Répartition
+      </h2>
 
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -45,17 +48,18 @@ export function ExpensePieChart() {
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={0}
+              innerRadius={52}
               outerRadius={88}
-              stroke="#2E3532"
-              strokeWidth={2}
+              paddingAngle={2}
+              cornerRadius={4}
+              stroke="none"
               labelLine={false}
               label={({ pct, x, y }) =>
-                pct >= 5 ? (
+                pct >= 6 ? (
                   <text
                     x={x}
                     y={y}
-                    fill="#F2EFE6"
+                    fill="#F8FAFC"
                     fontSize={12}
                     textAnchor="middle"
                     dominantBaseline="central"
@@ -72,10 +76,10 @@ export function ExpensePieChart() {
             <Tooltip
               formatter={(v: number) => formatAmount(v, currency)}
               contentStyle={{
-                background: "#232926",
-                border: "1px solid rgba(242,239,230,0.2)",
-                borderRadius: 8,
-                color: "#F2EFE6",
+                background: "#0B1120",
+                border: "1px solid rgba(248,250,252,0.12)",
+                borderRadius: 10,
+                color: "#F8FAFC",
                 fontSize: 12
               }}
             />

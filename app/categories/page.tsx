@@ -135,7 +135,7 @@ export default function CategoriesPage() {
                   onCheckedChange={(v) => setKind(v ? "income" : "expense")}
                   aria-label="Type de catégorie"
                 />
-                <span className={cn(kind === "income" ? "text-green-700" : "text-inkSoft")}>
+                <span className={cn(kind === "income" ? "text-emerald-600" : "text-inkSoft")}>
                   Revenu
                 </span>
               </div>

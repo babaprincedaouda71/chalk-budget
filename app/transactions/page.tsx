@@ -335,7 +335,7 @@ export default function TransactionsPage() {
   return (
     <div className="paper-bg notebook-margin flex min-h-0 flex-1 flex-col text-ink">
       {/* En-tête : mode édition / période / ajout */}
-      <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-2 pl-12">
+      <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-2 pl-4">
         <button
           onClick={() => {
             setEditMode((v) => !v);
@@ -387,7 +387,7 @@ export default function TransactionsPage() {
       </header>
 
       {/* Barre d'outils : tri / navigation / export */}
-      <div className="flex items-center justify-between border-b-2 border-ink/15 px-4 pb-2 pl-12">
+      <div className="flex items-center justify-between border-b-2 border-ink/15 px-4 pb-2 pl-4">
         <div className="relative">
           <button
             onClick={() => setOpenMenu(openMenu === "sort" ? null : "sort")}
@@ -451,7 +451,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Recherche + filtres */}
-      <div className="border-b border-ink/10 py-3 pl-12 pr-4">
+      <div className="border-b border-ink/10 py-3 pl-4 pr-4">
         <div className="relative mb-2">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-inkSoft" />
           <input
@@ -519,7 +519,7 @@ export default function TransactionsPage() {
 
       {/* Totaux de la période : revenus | dépenses */}
       <div className="flex text-center text-sm font-bold tabular-nums">
-        <div className="flex-1 bg-green-700/10 py-2 text-green-700">
+        <div className="flex-1 bg-emerald-600/10 py-2 text-emerald-600">
           {formatAmount(totals.income, currency)}
         </div>
         <div className="flex-1 bg-brickDeep/10 py-2 text-brickDeep">
@@ -531,7 +531,7 @@ export default function TransactionsPage() {
           Les lignes du carnet sont sur le conteneur interne pour défiler
           avec les rangées (et rester alignées). */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="notebook-lines min-h-full pb-28 pl-12 pr-4">
+        <div className="notebook-lines min-h-full pb-28 pl-4 pr-4">
         {sorted.length === 0 && (
           <p className="pt-10 text-center text-inkSoft">
             {hasFilters
@@ -540,13 +540,13 @@ export default function TransactionsPage() {
           </p>
         )}
 
-        <ul>
+        <ul className="divide-y divide-ink/5">
           {sorted.map((o) => {
             const t = o.tx;
             const c = cat(t.categoryId);
             const armed = armedDelete === o.key;
             return (
-              <li key={o.key} className="flex h-20 items-center gap-3">
+              <li key={o.key} className="flex h-16 items-center gap-3">
                 {editMode && (
                   <button
                     onClick={() => setArmedDelete(armed ? null : o.key)}
@@ -585,7 +585,7 @@ export default function TransactionsPage() {
                       <span
                         className={cn(
                           "shrink-0 font-bold tabular-nums",
-                          t.type === "income" ? "text-green-700" : "text-brickDeep"
+                          t.type === "income" ? "text-emerald-600" : "text-brickDeep"
                         )}
                       >
                         {formatAmount(t.amount, currency)}

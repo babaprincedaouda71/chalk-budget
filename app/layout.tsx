@@ -1,24 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Karla } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { BudgetProvider } from "@/lib/store";
 import { TabBar } from "@/components/tab-bar";
 
-const chalk = Caveat({
+const body = Inter({
   subsets: ["latin"],
-  variable: "--font-chalk",
-  weight: ["500", "600", "700"]
-});
-
-const body = Karla({
-  subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["400", "500", "700"]
+  variable: "--font-body"
 });
 
 export const metadata: Metadata = {
   title: "Ardoise — Budget",
-  description: "Gestion de budget skeuomorphe : tableau noir, craie et carnet.",
+  description: "Gestion de budget simple : dépenses, revenus et synchronisation multi-appareils.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -28,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#232926",
+  themeColor: "#0B1120",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -44,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${chalk.variable} ${body.variable}`}>
+    <html lang="fr" className={body.variable}>
       <body>
         <BudgetProvider>
           {/* Cadre mobile : largeur max centrée sur desktop */}

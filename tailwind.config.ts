@@ -1,25 +1,31 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Thème « moderne » (refonte du 19/07/2026) : les noms de jetons historiques
+ * (board, chalk, brick, paper, ink…) sont conservés pour ne pas toucher aux
+ * composants, mais pointent désormais vers une palette contemporaine —
+ * tableau de bord sombre ardoise, pages claires, accents émeraude/rose.
+ */
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        board: "#2E3532",
-        boardEdge: "#232926",
-        chalk: "#F2EFE6",
-        chalkDim: "#C9C6BC",
-        chalkGreen: "#9ED8A4",
-        brick: "#D9765C",
-        brickDeep: "#B85C43",
-        paper: "#F7F1E1",
-        paperLine: "#B9C8DB",
-        paperMargin: "#DE9A93",
-        ink: "#3A342C",
-        inkSoft: "#7A7264"
+        board: "#0F172A", // surface sombre du tableau de bord
+        boardEdge: "#0B1120", // fond de l'app + Tab Bar
+        chalk: "#F8FAFC", // texte principal sur fond sombre
+        chalkDim: "#94A3B8", // texte secondaire sur fond sombre
+        chalkGreen: "#34D399", // accent revenus (émeraude)
+        brick: "#FB7185", // dépenses sur fond sombre (rose clair)
+        brickDeep: "#E11D48", // dépenses sur fond clair (rose soutenu)
+        paper: "#F5F7FA", // fond des pages claires
+        paperLine: "#E2E8F0", // séparateurs discrets
+        paperMargin: "#E2E8F0", // (hérité, neutralisé)
+        ink: "#0F172A", // texte principal sur fond clair
+        inkSoft: "#64748B" // texte secondaire sur fond clair
       },
       fontFamily: {
-        chalk: ["var(--font-chalk)", "cursive"],
+        chalk: ["var(--font-body)", "system-ui", "sans-serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"]
       },
       maxWidth: { app: "28rem" }

@@ -71,7 +71,7 @@ export function TransactionForm({ initial, onDone }: Props) {
           onCheckedChange={switchType}
           aria-label="Basculer entre dépense et revenu"
         />
-        <span className={cn("font-medium", type === "income" ? "text-green-700" : "text-inkSoft")}>
+        <span className={cn("font-medium", type === "income" ? "text-emerald-600" : "text-inkSoft")}>
           Revenu
         </span>
       </div>

@@ -24,7 +24,7 @@ export function MonthSelector() {
       </button>
 
       <div className="text-center">
-        <h1 className="chalk-text chalk-underline text-4xl font-bold text-chalk">
+        <h1 className="chalk-underline text-2xl font-bold tracking-tight text-chalk">
           {MONTH_NAMES[month.month]}
         </h1>
         <p className="mt-1 text-xs tracking-widest text-chalkDim/80">

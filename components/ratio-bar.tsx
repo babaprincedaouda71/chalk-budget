@@ -30,7 +30,7 @@ export function RatioBar() {
       >
         {!empty && greenPct > 0 && (
           <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-b from-chalkGreen to-[#7FBF86] transition-all duration-500"
+            className="absolute inset-y-0 left-0 bg-gradient-to-b from-chalkGreen to-[#10B981] transition-all duration-500"
             style={{ width: `${greenPct}%` }}
           />
         )}
