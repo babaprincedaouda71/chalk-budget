@@ -18,7 +18,10 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "paper-bg fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[calc(100%-2rem)] max-w-app -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-ink/15 p-5 text-ink shadow-2xl focus:outline-none",
+        // Ancré vers le haut (et non centré) : quand le clavier s'ouvre sur
+        // mobile, un dialogue centré verticalement devient à moitié
+        // inaccessible. Hauteur en dvh + défilement interne.
+        "paper-bg fixed left-1/2 top-[max(2.5rem,env(safe-area-inset-top))] z-50 max-h-[calc(100dvh-8rem)] w-[calc(100%-2rem)] max-w-app -translate-x-1/2 overflow-y-auto rounded-xl border border-ink/15 p-5 text-ink shadow-2xl focus:outline-none",
         className
       )}
       {...props}

@@ -42,19 +42,23 @@ export default function DashboardPage() {
           <ul className="chalk-text space-y-1 text-2xl">
             {incomeByCategory.map(({ category, total }) => (
               <li key={category.id} className="flex items-baseline gap-3">
-                <CategoryIcon name={category.icon} className="h-5 w-5 translate-y-0.5 text-chalkGreen/80" />
-                <span className="chalk-green">{category.name}</span>
-                <span className="mx-1 flex-1 border-b border-dotted border-chalk/25" />
-                <span className="chalk-green">+ {formatAmount(total, currency)}</span>
+                <CategoryIcon name={category.icon} className="h-5 w-5 shrink-0 translate-y-0.5 text-chalkGreen/80" />
+                <span className="chalk-green min-w-0 flex-shrink truncate">{category.name}</span>
+                <span className="mx-1 min-w-3 flex-1 border-b border-dotted border-chalk/25" />
+                <span className="chalk-green shrink-0 whitespace-nowrap">
+                  + {formatAmount(total, currency)}
+                </span>
               </li>
             ))}
 
             {expenseByCategory.map(({ category, total }) => (
               <li key={category.id} className="flex items-baseline gap-3">
-                <CategoryIcon name={category.icon} className="h-5 w-5 translate-y-0.5 text-brick/80" />
-                <span className="chalk-red">{category.name}</span>
-                <span className="mx-1 flex-1 border-b border-dotted border-chalk/25" />
-                <span className="chalk-red">− {formatAmount(total, currency)}</span>
+                <CategoryIcon name={category.icon} className="h-5 w-5 shrink-0 translate-y-0.5 text-brick/80" />
+                <span className="chalk-red min-w-0 flex-shrink truncate">{category.name}</span>
+                <span className="mx-1 min-w-3 flex-1 border-b border-dotted border-chalk/25" />
+                <span className="chalk-red shrink-0 whitespace-nowrap">
+                  − {formatAmount(total, currency)}
+                </span>
               </li>
             ))}
 
@@ -83,7 +87,7 @@ export default function DashboardPage() {
       <button
         onClick={() => setAddOpen(true)}
         aria-label="Ajouter une transaction"
-        className="fixed bottom-24 right-1/2 z-30 translate-x-[calc(theme(maxWidth.app)/2-4rem)] rounded-full bg-chalk p-4 text-board shadow-xl transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chalk"
+        className="fixed bottom-24 right-[max(1rem,calc(50%-13rem))] z-30 rounded-full bg-chalk p-4 text-board shadow-xl transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chalk"
       >
         <Plus className="h-6 w-6" strokeWidth={2.5} />
       </button>

@@ -43,7 +43,7 @@ export function CategoryPicker({
           className="paper-bg fixed inset-0 z-[60] overflow-y-auto text-ink focus:outline-none"
           aria-describedby={undefined}
         >
-          <div className="mx-auto min-h-dvh max-w-app px-4 pb-10 pt-5">
+          <div className="mx-auto min-h-dvh max-w-app px-4 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
             <header className="mb-4 flex items-center gap-2">
               <button
                 type="button"
