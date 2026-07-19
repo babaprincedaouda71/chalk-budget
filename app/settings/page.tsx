@@ -131,21 +131,20 @@ export default function SettingsPage() {
 
       <section className="mb-6">
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-inkSoft">
-          Ajout magique (IA)
+          Ajout magique
         </h2>
         <div className="rounded-xl border border-ink/15 bg-white/40 p-3 text-sm leading-relaxed">
           <p>
-            Sans configuration, l&apos;analyse utilise un parseur local par
-            mots-clés : il fonctionne hors ligne et sans clé.
+            L&apos;analyse se fait entièrement sur cet appareil, sans IA ni
+            connexion : chaque montant clôt un « ticket », et la catégorie est
+            devinée grâce aux mots-clés de vos catégories (fautes de frappe et
+            accents tolérés).
           </p>
           <p className="mt-2">
-            Pour une analyse par IA plus fine (Google Gemini), définissez la
-            variable d&apos;environnement{" "}
-            <code className="rounded bg-ink/10 px-1">GEMINI_API_KEY</code> sur
-            Vercel (Settings → Environment Variables), puis redéployez. Clé à
-            créer sur Google AI Studio ; en local, copiez{" "}
-            <code className="rounded bg-ink/10 px-1">.env.local.example</code>{" "}
-            en <code className="rounded bg-ink/10 px-1">.env.local</code>.
+            Et ça apprend : quand vous corrigez la catégorie d&apos;une
+            transaction, les mots de sa note deviennent des mots-clés de la
+            catégorie choisie. Vous pouvez aussi compléter les mots-clés à la
+            main dans l&apos;onglet Catégories.
           </p>
         </div>
       </section>

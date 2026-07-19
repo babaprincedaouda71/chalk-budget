@@ -1,74 +1,59 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 import { useBudget } from "@/lib/store";
-import { leftoverWords } from "@/lib/parser";
+import { leftoverWords, parseLocally } from "@/lib/parser";
 import { ParsedItem } from "@/lib/types";
 import { CategoryIcon } from "./category-icon";
 
 /**
  * "Ajout magique" : l'utilisateur tape par ex. "tomates, oignons 50, tondeuse 182".
- * Le texte est envoyé à /api/parse qui renvoie des transactions structurées
- * (LLM Gemini si GEMINI_API_KEY est configurée, sinon parseur local déterministe).
+ * L'analyse est faite entièrement dans le navigateur par le parseur local
+ * déterministe (lib/parser.ts) — aucun appel réseau, fonctionne hors ligne.
  * Les tickets sont ajoutés instantanément au store → la barre de progression
  * et le graphique circulaire se mettent à jour dans la foulée.
  */
 export function SmartInput() {
   const { categories, currency, addTransactions } = useBudget();
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{
     items: ParsedItem[];
     leftover: string;
     error?: string;
   } | null>(null);
 
-  const submit = async () => {
+  const submit = () => {
     const value = text.trim();
-    if (!value || loading) return;
-    setLoading(true);
-    setFeedback(null);
+    if (!value) return;
 
-    try {
-      const res = await fetch("/api/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: value, categories })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: { items: ParsedItem[] } = await res.json();
+    // Même validation stricte qu'avant : montant positif, catégorie existante,
+    // note bornée à 120 caractères (déjà garanti par le parseur).
+    const items = parseLocally(value, categories).filter(
+      (i) => i.amount > 0 && categories.some((c) => c.id === i.categoryId)
+    );
 
-      if (data.items.length === 0) {
-        setFeedback({
-          items: [],
-          leftover: "",
-          error: "Aucun montant détecté. Ajoutez un prix après chaque article, ex. « pain 12 »."
-        });
-        return;
-      }
-
-      const today = new Date().toISOString().slice(0, 10);
-      addTransactions(
-        data.items.map((i) => ({
-          type: i.type,
-          amount: i.amount,
-          date: today,
-          categoryId: i.categoryId,
-          note: i.note
-        }))
-      );
-      setFeedback({ items: data.items, leftover: leftoverWords(value) });
-      setText("");
-    } catch {
+    if (items.length === 0) {
       setFeedback({
         items: [],
         leftover: "",
-        error: "Analyse impossible pour le moment. Réessayez ou utilisez la saisie manuelle."
+        error: "Aucun montant détecté. Ajoutez un prix après chaque article, ex. « pain 12 »."
       });
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    const today = new Date().toISOString().slice(0, 10);
+    addTransactions(
+      items.map((i) => ({
+        type: i.type,
+        amount: i.amount,
+        date: today,
+        categoryId: i.categoryId,
+        note: i.note
+      }))
+    );
+    setFeedback({ items, leftover: leftoverWords(value) });
+    setText("");
   };
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? id;
@@ -89,15 +74,11 @@ export function SmartInput() {
         />
         <button
           onClick={submit}
-          disabled={loading || !text.trim()}
+          disabled={!text.trim()}
           aria-label="Envoyer"
           className="rounded-lg bg-chalk/15 p-2 text-chalk transition hover:bg-chalk/25 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chalk/50"
         >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
+          <Send className="h-4 w-4" />
         </button>
       </div>
 

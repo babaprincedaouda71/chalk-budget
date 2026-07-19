@@ -20,7 +20,8 @@ export const DEFAULT_CATEGORIES: Category[] = [
     kind: "expense",
     keywords: [
       "taxi", "bus", "train", "tram", "métro", "metro", "essence", "gasoil", "diesel",
-      "carburant", "station", "péage", "peage", "parking", "uber", "careem", "billet"
+      "carburant", "station", "péage", "peage", "parking", "uber", "careem", "indrive",
+      "tricycle", "billet"
     ]
   },
   {
@@ -30,7 +31,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     kind: "expense",
     keywords: [
       "internet", "wifi", "forfait", "recharge", "téléphone", "telephone", "mobile",
-      "fibre", "sim", "data", "orange", "inwi", "iam"
+      "fibre", "sim", "data", "orange", "inwi", "iam", "yoxo"
     ]
   },
   {
@@ -145,7 +146,8 @@ export const DEFAULT_CATEGORIES: Category[] = [
     kind: "expense",
     keywords: [
       "pharmacie", "médecin", "medecin", "docteur", "dentiste", "médicament",
-      "medicament", "analyse", "mutuelle", "sport", "gym", "salle", "fitness"
+      "medicament", "analyse", "mutuelle", "sport", "gym", "salle", "fitness",
+      "hopital", "clinique", "examen", "examens", "consultation"
     ]
   },
   {
@@ -225,7 +227,7 @@ export const FALLBACK_EXPENSE_ID = "divers";
  * chargé, `migrateCatalog` remplace les anciennes catégories par défaut par
  * les nouvelles et rattache les transactions aux catégories équivalentes.
  */
-export const CATALOG_VERSION = 3;
+export const CATALOG_VERSION = 4;
 
 // Identifiants des catégories par défaut de la V1 (remplacées à la migration ;
 // les catégories créées par l'utilisateur sont conservées telles quelles).
@@ -248,6 +250,13 @@ const V1_ID_MAP: Record<string, string> = {
 
 // Catégories ajoutées en V3 (revenus : Bourse, Don, Part Time Job).
 const V3_ADDED_IDS = ["bourse-income", "don-income", "part-time-job"];
+
+// Mots-clés ajoutés en V4 (renfort du parseur local après retrait de l'IA).
+const V4_KEYWORD_ADDITIONS: Record<string, string[]> = {
+  transport: ["indrive", "tricycle"],
+  "internet-telecom": ["yoxo", "abonnement internet"],
+  "sante-sport": ["hopital", "clinique", "examen", "examens", "consultation"]
+};
 
 export function migrateCatalog<
   T extends { transactions: Transaction[]; categories: Category[] }
@@ -279,6 +288,21 @@ export function migrateCatalog<
     if (additions.length) {
       migrated = { ...migrated, categories: [...migrated.categories, ...additions] };
     }
+  }
+
+  if (from < 4) {
+    // V3 → V4 : mots-clés supplémentaires pour le parseur local (l'IA a été
+    // retirée ; ces termes viennent de l'usage réel de l'utilisateur).
+    migrated = {
+      ...migrated,
+      categories: migrated.categories.map((c) => {
+        const extra = V4_KEYWORD_ADDITIONS[c.id];
+        if (!extra) return c;
+        const have = new Set(c.keywords.map((k) => k.toLowerCase()));
+        const fresh = extra.filter((k) => !have.has(k));
+        return fresh.length ? { ...c, keywords: [...c.keywords, ...fresh] } : c;
+      })
+    };
   }
 
   return migrated;

@@ -16,6 +16,7 @@ import {
   FALLBACK_EXPENSE_ID,
   migrateCatalog
 } from "./categories";
+import { extractLearnableWords, normalizeWord } from "./parser";
 
 /**
  * Persistance : localStorage (source primaire, hors ligne d'abord) +
@@ -339,10 +340,33 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateTransaction = useCallback((tx: Transaction) => {
-    setState((s) => ({
-      ...s,
-      transactions: s.transactions.map((t) => (t.id === tx.id ? tx : t))
-    }));
+    setState((s) => {
+      // Apprentissage local : corriger la catégorie d'une transaction ajoute
+      // les mots significatifs de sa note aux mots-clés de la catégorie
+      // choisie — l'ajout magique s'améliore à chaque correction.
+      let categories = s.categories;
+      const prev = s.transactions.find((t) => t.id === tx.id);
+      if (prev && prev.categoryId !== tx.categoryId && tx.note) {
+        const taken = new Set(
+          s.categories.flatMap((c) => c.keywords.map((k) => normalizeWord(k)))
+        );
+        const learned = extractLearnableWords(tx.note)
+          .filter((w) => !taken.has(w))
+          .slice(0, 3);
+        if (learned.length && s.categories.some((c) => c.id === tx.categoryId)) {
+          categories = s.categories.map((c) =>
+            c.id === tx.categoryId
+              ? { ...c, keywords: [...c.keywords, ...learned] }
+              : c
+          );
+        }
+      }
+      return {
+        ...s,
+        categories,
+        transactions: s.transactions.map((t) => (t.id === tx.id ? tx : t))
+      };
+    });
   }, []);
 
   const deleteTransaction = useCallback((id: string) => {
