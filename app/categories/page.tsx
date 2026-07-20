@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { CategoryIcon, ICON_NAMES } from "@/components/category-icon";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+import { SegmentedControl } from "@/components/segmented-control";
 import { useBudget } from "@/lib/store";
 import { Category, TxType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -100,28 +100,16 @@ export default function CategoriesPage() {
       <h1 className="mb-4 text-xl font-bold">Catégories</h1>
 
       {/* Interrupteur à segments Dépenses / Revenus */}
-      <div
-        role="tablist"
-        aria-label="Type de catégories"
-        className="mb-4 flex rounded-xl bg-ink/5 p-1 ring-1 ring-ink/10"
-      >
-        {(["expense", "income"] as TxType[]).map((k) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={cn(
-              "flex-1 rounded-lg px-3 py-2 text-sm font-bold transition",
-              tab === k
-                ? "bg-white text-ink shadow-sm"
-                : "text-inkSoft hover:text-ink"
-            )}
-          >
-            {k === "expense" ? "Dépenses" : "Revenus"}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Type de catégories"
+        className="mb-4"
+        options={[
+          { value: "expense", label: "Dépenses" },
+          { value: "income", label: "Revenus" }
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28">
         <Section kind={tab} />
@@ -143,19 +131,15 @@ export default function CategoriesPage() {
             {/* Le type n'est pas modifiable après création : les transactions
                 existantes de la catégorie sont typées en conséquence. */}
             {!editing && (
-              <div className="flex items-center justify-between rounded-lg border border-ink/15 bg-white/40 px-3 py-2.5">
-                <span className={cn(kind === "expense" ? "text-brickDeep" : "text-inkSoft")}>
-                  Dépense
-                </span>
-                <Switch
-                  checked={kind === "income"}
-                  onCheckedChange={(v) => setKind(v ? "income" : "expense")}
-                  aria-label="Type de catégorie"
-                />
-                <span className={cn(kind === "income" ? "text-emerald-600" : "text-inkSoft")}>
-                  Revenu
-                </span>
-              </div>
+              <SegmentedControl
+                ariaLabel="Type de catégorie"
+                options={[
+                  { value: "expense", label: "Dépense" },
+                  { value: "income", label: "Revenu" }
+                ]}
+                value={kind}
+                onChange={setKind}
+              />
             )}
 
             <label className="block">

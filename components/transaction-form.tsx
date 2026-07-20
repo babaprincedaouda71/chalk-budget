@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { CategoryIcon } from "./category-icon";
 import { CategoryPicker } from "./category-picker";
 import { RecurringScopeDialog } from "./recurring-scope-dialog";
+import { SegmentedControl } from "./segmented-control";
 import { useBudget } from "@/lib/store";
 import { RecurringScope, Transaction, TxType } from "@/lib/types";
 import { cn, toISODate } from "@/lib/utils";
@@ -111,20 +112,16 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Interrupteur Revenu / Dépense */}
-      <div className="flex items-center justify-between rounded-lg border border-ink/15 bg-white/40 px-3 py-2.5">
-        <span className={cn("font-medium", type === "expense" ? "text-brickDeep" : "text-inkSoft")}>
-          Dépense
-        </span>
-        <Switch
-          checked={type === "income"}
-          onCheckedChange={switchType}
-          aria-label="Basculer entre dépense et revenu"
-        />
-        <span className={cn("font-medium", type === "income" ? "text-emerald-600" : "text-inkSoft")}>
-          Revenu
-        </span>
-      </div>
+      {/* Type : dépense ou revenu */}
+      <SegmentedControl
+        ariaLabel="Type de transaction"
+        options={[
+          { value: "expense", label: "Dépense" },
+          { value: "income", label: "Revenu" }
+        ]}
+        value={type}
+        onChange={(v) => switchType(v === "income")}
+      />
 
       {/* Montant */}
       <label className="block">

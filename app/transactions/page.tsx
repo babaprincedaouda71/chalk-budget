@@ -587,7 +587,7 @@ export default function TransactionsPage() {
 
       {/* Totaux de la période : revenus | dépenses */}
       <div className="flex text-center text-sm font-bold tabular-nums">
-        <div className="flex-1 bg-emerald-600/10 py-2 text-emerald-600">
+        <div className="flex-1 bg-greenDeep/10 py-2 text-greenDeep">
           {formatAmount(totals.income, currency)}
         </div>
         <div className="flex-1 bg-brickDeep/10 py-2 text-brickDeep">
@@ -617,7 +617,7 @@ export default function TransactionsPage() {
                   <button
                     onClick={() => setArmedDelete(armed ? null : o.key)}
                     aria-label={armed ? "Annuler la suppression" : "Supprimer"}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 text-sm font-bold leading-none text-white"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brickDeep text-sm font-bold leading-none text-white"
                   >
                     −
                   </button>
@@ -651,7 +651,7 @@ export default function TransactionsPage() {
                       <span
                         className={cn(
                           "shrink-0 font-bold tabular-nums",
-                          t.type === "income" ? "text-emerald-600" : "text-brickDeep"
+                          t.type === "income" ? "text-greenDeep" : "text-brickDeep"
                         )}
                       >
                         {formatAmount(t.amount, currency)}
@@ -671,7 +671,7 @@ export default function TransactionsPage() {
                       else deleteTransaction(t.id);
                       setArmedDelete(null);
                     }}
-                    className="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white"
+                    className="shrink-0 rounded-lg bg-brickDeep px-3 py-2 text-sm font-bold text-white"
                   >
                     Supprimer
                   </button>

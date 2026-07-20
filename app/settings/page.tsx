@@ -243,7 +243,7 @@ export default function SettingsPage() {
             Importer (CSV ou JSON)…
           </button>
           {importError && <p className="text-sm text-brickDeep">{importError}</p>}
-          {importDone && <p className="text-sm font-medium text-emerald-600">{importDone}</p>}
+          {importDone && <p className="text-sm font-medium text-greenDeep">{importDone}</p>}
           <p className="text-xs text-inkSoft">
             Import : export CSV d&apos;une autre app (Spending Tracker, banque…)
             ou sauvegarde JSON de cette app. Les catégories sont reconnues par

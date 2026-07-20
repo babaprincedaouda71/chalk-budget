@@ -15,7 +15,8 @@ const config: Config = {
         boardEdge: "#0B1120", // fond de l'app + Tab Bar
         chalk: "#F8FAFC", // texte principal sur fond sombre
         chalkDim: "#94A3B8", // texte secondaire sur fond sombre
-        chalkGreen: "#34D399", // accent revenus (émeraude)
+        chalkGreen: "#34D399", // revenus sur fond sombre (émeraude clair)
+        greenDeep: "#059669", // revenus sur fond clair (émeraude soutenu)
         brick: "#FB7185", // dépenses sur fond sombre (rose clair)
         brickDeep: "#E11D48", // dépenses sur fond clair (rose soutenu)
         paper: "#F5F7FA", // fond des pages claires
