@@ -22,6 +22,10 @@ interface SyncPayload {
   transactions: unknown[];
   categories: unknown[];
   currency: string;
+  // Champs additionnels (catalogVersion, currencyUpdatedAt, et les champs par
+  // entité updatedAt/deleted) : non validés ici mais conservés — le blob
+  // complet est stocké et relu à l'identique, la fusion se fait côté client.
+  [key: string]: unknown;
 }
 
 function redisEnv() {

@@ -7,11 +7,12 @@ import {
 import { CategoryIcon } from "@/components/category-icon";
 import { CategoryPicker } from "@/components/category-picker";
 import { TransactionForm } from "@/components/transaction-form";
+import { RecurringScopeDialog } from "@/components/recurring-scope-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { MONTH_NAMES, formatAmount, useBudget } from "@/lib/store";
 import { Occurrence, occurrencesInRange } from "@/lib/occurrences";
-import { Transaction, TxType } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { RecurringScope, TxType } from "@/lib/types";
+import { cn, round2 } from "@/lib/utils";
 
 type TypeFilter = "all" | TxType;
 type Period = "day" | "week" | "month" | "year";
@@ -93,10 +94,12 @@ function MenuItem({
 
 export default function TransactionsPage() {
   const {
-    transactions, categories, currency, month, setMonth, deleteTransaction
+    transactions, categories, currency, month, setMonth, deleteTransaction, deleteRecurring
   } = useBudget();
 
-  const [editing, setEditing] = useState<Transaction | null>(null);
+  const [editing, setEditing] = useState<Occurrence | null>(null);
+  // Occurrence récurrente en attente de suppression (choix de portée).
+  const [deleteScope, setDeleteScope] = useState<Occurrence | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -215,7 +218,7 @@ export default function TransactionsPage() {
       if (tx.type === "income") income += tx.amount;
       else expense += tx.amount;
     }
-    return { income, expense };
+    return { income: round2(income), expense: round2(expense) };
   }, [filtered]);
 
   const hasFilters = typeFilter !== "all" || !!categoryFilter || !!search.trim();
@@ -236,21 +239,72 @@ export default function TransactionsPage() {
 
   /* ---------- Export ---------- */
 
+  interface ExportRow {
+    date: string;
+    type: TxType;
+    category: string;
+    note: string;
+    amount: number;
+  }
+
+  // Lignes de la PÉRIODE affichée (occurrences, filtres appliqués).
+  const periodRows = (): ExportRow[] =>
+    sorted.map((o) => ({
+      date: o.date,
+      type: o.tx.type,
+      category: cat(o.tx.categoryId)?.name ?? "",
+      note: o.tx.note ?? "",
+      amount: o.tx.amount
+    }));
+
+  // Lignes de TOUTES les transactions (chaque récurrente une fois, à sa date
+  // d'origine), triées par date décroissante — sauvegarde complète.
+  const allRows = (): ExportRow[] =>
+    [...transactions]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((t) => ({
+        date: t.date,
+        type: t.type,
+        category: cat(t.categoryId)?.name ?? "",
+        note: t.note ?? "",
+        amount: t.amount
+      }));
+
+  const rowsTotals = (rows: ExportRow[]) => {
+    let income = 0;
+    let expense = 0;
+    for (const r of rows) {
+      if (r.type === "income") income += r.amount;
+      else expense += r.amount;
+    }
+    return { income: round2(income), expense: round2(expense) };
+  };
+
+  const slug = (label: string) => label.replace(/[^\p{L}\d]+/gu, "-");
   const csvField = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
-  const exportCsv = () => {
+  const download = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCsv = (rows: ExportRow[], label: string) => {
     const sep = ";";
     const lines = [
       ["Date", "Type", "Catégorie", "Note", "Montant", "Devise"].join(sep)
     ];
-    for (const o of sorted) {
+    for (const r of rows) {
       lines.push(
         [
-          o.date,
-          o.tx.type === "income" ? "Revenu" : "Dépense",
-          csvField(cat(o.tx.categoryId)?.name ?? ""),
-          csvField(o.tx.note ?? ""),
-          String(o.tx.amount).replace(".", ","),
+          r.date,
+          r.type === "income" ? "Revenu" : "Dépense",
+          csvField(r.category),
+          csvField(r.note),
+          String(r.amount).replace(".", ","),
           currency
         ].join(sep)
       );
@@ -259,38 +313,39 @@ export default function TransactionsPage() {
     const blob = new Blob(["\uFEFF" + lines.join("\n")], {
       type: "text/csv;charset=utf-8"
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ardoise-transactions-${rangeLabel.replace(/[^\p{L}\d]+/gu, "-")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    download(blob, `ardoise-transactions-${slug(label)}.csv`);
   };
 
   /**
    * PDF généré côté client (jsPDF, importé à la demande) : fonctionne aussi
    * dans la PWA iOS, où la boîte d'impression n'est pas disponible.
    */
-  const exportPdf = async () => {
+  const exportPdf = async (rows: ExportRow[], label: string) => {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     // Les espaces fines insécables de toLocaleString ne sont pas dans les
     // polices standard du PDF.
-    const clean = (s: string) => s.replace(/[\u202F\u00A0]/g, " ");
+    // Les polices standard du PDF n'encodent que WinAnsi (Latin-1 + extras
+    // cp1252). On normalise les espaces ins\u00E9cables et on remplace tout
+    // caract\u00E8re non repr\u00E9sentable (arabe, CJK\u2026) par \u00AB ? \u00BB pour \u00E9viter qu'il
+    // disparaisse silencieusement \u2014 le CSV, lui, reste fid\u00E8le en UTF-8.
+    const winAnsiExtra =
+      "\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D" +
+      "\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178";
+    const unsupported = new RegExp(`[^\\u0000-\\u00FF${winAnsiExtra}]`, "g");
+    const clean = (s: string) =>
+      s.normalize("NFC").replace(/[\u202F\u00A0]/g, " ").replace(unsupported, "?");
     const money = (n: number) => clean(formatAmount(n, currency));
+    const t = rowsTotals(rows);
     const left = 15;
     const right = 195;
     let y = 18;
 
     doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(32);
-    doc.text(`Ardoise — Transactions (${rangeLabel})`, left, y);
+    doc.text(`Ardoise — Transactions (${label})`, left, y);
     y += 7;
     doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(110);
-    doc.text(
-      `Revenus : ${money(totals.income)}   ·   Dépenses : ${money(totals.expense)}`,
-      left,
-      y
-    );
+    doc.text(`Revenus : ${money(t.income)}   ·   Dépenses : ${money(t.expense)}`, left, y);
     y += 9;
 
     const tableHeader = () => {
@@ -307,10 +362,9 @@ export default function TransactionsPage() {
     };
     tableHeader();
 
-    for (const o of sorted) {
-      const c = cat(o.tx.categoryId);
-      const catLines = doc.splitTextToSize(clean(c?.name ?? ""), 46) as string[];
-      const noteLines = doc.splitTextToSize(clean(o.tx.note ?? ""), 68) as string[];
+    for (const r of rows) {
+      const catLines = doc.splitTextToSize(clean(r.category), 46) as string[];
+      const noteLines = doc.splitTextToSize(clean(r.note), 68) as string[];
       const rowH = Math.max(1, catLines.length, noteLines.length) * 4.5 + 2.5;
       if (y + rowH > 285) {
         doc.addPage();
@@ -318,16 +372,16 @@ export default function TransactionsPage() {
         tableHeader();
       }
       doc.setTextColor(40);
-      doc.text(o.date, left, y);
+      doc.text(r.date, left, y);
       doc.text(catLines, left + 27, y);
       doc.text(noteLines, left + 77, y);
-      if (o.tx.type === "income") doc.setTextColor(21, 128, 61);
+      if (r.type === "income") doc.setTextColor(21, 128, 61);
       else doc.setTextColor(176, 68, 44);
-      doc.text(money(o.tx.amount), right, y, { align: "right" });
+      doc.text(money(r.amount), right, y, { align: "right" });
       y += rowH;
     }
 
-    doc.save(`ardoise-transactions-${rangeLabel.replace(/[^\p{L}\d]+/gu, "-")}.pdf`);
+    doc.save(`ardoise-transactions-${slug(label)}.pdf`);
   };
 
   /* ---------- Rendu ---------- */
@@ -429,21 +483,35 @@ export default function TransactionsPage() {
           <Menu
             open={openMenu === "export"}
             onClose={() => setOpenMenu(null)}
-            title="Exporter en"
+            title="Exporter"
             align="right"
           >
             <MenuItem
-              label="PDF"
+              label="PDF — période affichée"
               onClick={() => {
                 setOpenMenu(null);
-                exportPdf();
+                void exportPdf(periodRows(), rangeLabel);
               }}
             />
             <MenuItem
-              label="CSV"
+              label="PDF — toutes les transactions"
               onClick={() => {
                 setOpenMenu(null);
-                exportCsv();
+                void exportPdf(allRows(), "Toutes les transactions");
+              }}
+            />
+            <MenuItem
+              label="CSV — période affichée"
+              onClick={() => {
+                setOpenMenu(null);
+                exportCsv(periodRows(), rangeLabel);
+              }}
+            />
+            <MenuItem
+              label="CSV — toutes les transactions"
+              onClick={() => {
+                setOpenMenu(null);
+                exportCsv(allRows(), "Toutes les transactions");
               }}
             />
           </Menu>
@@ -558,7 +626,7 @@ export default function TransactionsPage() {
                 )}
 
                 <button
-                  onClick={() => !editMode && setEditing(t)}
+                  onClick={() => !editMode && setEditing(o)}
                   className={cn(
                     "flex min-w-0 flex-1 items-center gap-3 text-left",
                     !editMode && "hover:bg-ink/5 focus-visible:bg-ink/5 focus-visible:outline-none"
@@ -600,7 +668,9 @@ export default function TransactionsPage() {
                 {armed && (
                   <button
                     onClick={() => {
-                      deleteTransaction(t.id);
+                      // Récurrente : demander la portée ; sinon suppression directe.
+                      if (t.recurring) setDeleteScope(o);
+                      else deleteTransaction(t.id);
                       setArmedDelete(null);
                     }}
                     className="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white"
@@ -626,7 +696,11 @@ export default function TransactionsPage() {
         <DialogContent>
           <DialogTitle>Modifier la transaction</DialogTitle>
           {editing && (
-            <TransactionForm initial={editing} onDone={() => setEditing(null)} />
+            <TransactionForm
+              initial={editing.tx}
+              occurrenceDate={editing.date}
+              onDone={() => setEditing(null)}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -645,6 +719,16 @@ export default function TransactionsPage() {
           onClose={() => setFilterPickerOpen(false)}
         />
       )}
+
+      <RecurringScopeDialog
+        open={deleteScope !== null}
+        action="delete"
+        onChoose={(scope: RecurringScope) => {
+          if (deleteScope) deleteRecurring(deleteScope.tx, deleteScope.date, scope);
+          setDeleteScope(null);
+        }}
+        onCancel={() => setDeleteScope(null)}
+      />
     </div>
   );
 }

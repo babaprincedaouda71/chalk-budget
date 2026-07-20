@@ -5,25 +5,43 @@ import { ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { CategoryIcon } from "./category-icon";
 import { CategoryPicker } from "./category-picker";
+import { RecurringScopeDialog } from "./recurring-scope-dialog";
 import { useBudget } from "@/lib/store";
-import { Transaction, TxType } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { RecurringScope, Transaction, TxType } from "@/lib/types";
+import { cn, toISODate } from "@/lib/utils";
 
 interface Props {
   /** transaction existante = mode édition */
   initial?: Transaction;
+  /**
+   * Date effective de l'occurrence éditée (yyyy-mm-dd). Pour une récurrente,
+   * c'est le mois sur lequel l'utilisateur a tapé — pré-remplit le champ date
+   * et sert de portée aux modifications. Par défaut : la date de `initial`.
+   */
+  occurrenceDate?: string;
   onDone: () => void;
 }
 
-export function TransactionForm({ initial, onDone }: Props) {
-  const { categories, currency, addTransactions, updateTransaction, deleteTransaction } =
-    useBudget();
+export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
+  const {
+    categories,
+    currency,
+    addTransactions,
+    updateTransaction,
+    deleteTransaction,
+    updateRecurring,
+    deleteRecurring
+  } = useBudget();
 
   const [type, setType] = useState<TxType>(initial?.type ?? "expense");
   const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
-  const [date, setDate] = useState(initial?.date ?? new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(
+    occurrenceDate ?? initial?.date ?? toISODate()
+  );
   const [note, setNote] = useState(initial?.note ?? "");
   const [recurring, setRecurring] = useState(initial?.recurring ?? false);
+  // Dialogue de portée (récurrentes) : "save" ou "delete" en attente.
+  const [scopePrompt, setScopePrompt] = useState<"save" | "delete" | null>(null);
 
   const typeCategories = useMemo(
     () => categories.filter((c) => c.kind === type),
@@ -44,18 +62,50 @@ export function TransactionForm({ initial, onDone }: Props) {
 
   const valid = parseFloat(amount.replace(",", ".")) > 0 && categoryId && date;
 
+  const buildTx = (): Omit<Transaction, "id"> => ({
+    type,
+    amount: parseFloat(amount.replace(",", ".")),
+    date,
+    categoryId,
+    note: note.trim() || undefined,
+    recurring
+  });
+
   const save = () => {
     if (!valid) return;
-    const tx = {
-      type,
-      amount: parseFloat(amount.replace(",", ".")),
-      date,
-      categoryId,
-      note: note.trim() || undefined,
-      recurring
-    };
-    if (initial) updateTransaction({ ...tx, id: initial.id });
-    else addTransactions([tx]);
+    if (initial) {
+      // Récurrente : demander la portée avant d'appliquer.
+      if (initial.recurring) {
+        setScopePrompt("save");
+        return;
+      }
+      updateTransaction({ ...buildTx(), id: initial.id });
+    } else {
+      addTransactions([buildTx()]);
+    }
+    onDone();
+  };
+
+  const remove = () => {
+    if (!initial) return;
+    if (initial.recurring) {
+      setScopePrompt("delete");
+      return;
+    }
+    deleteTransaction(initial.id);
+    onDone();
+  };
+
+  // Applique l'action en attente (save/delete) avec la portée choisie.
+  const applyScope = (scope: RecurringScope) => {
+    if (!initial) return;
+    const occDate = occurrenceDate ?? initial.date;
+    if (scopePrompt === "delete") {
+      deleteRecurring(initial, occDate, scope);
+    } else {
+      updateRecurring(initial, occDate, buildTx(), scope);
+    }
+    setScopePrompt(null);
     onDone();
   };
 
@@ -80,12 +130,14 @@ export function TransactionForm({ initial, onDone }: Props) {
       <label className="block">
         <span className="mb-1 block text-sm text-inkSoft">Montant ({currency})</span>
         <input
-          type="number"
+          // type="text" (et non "number") : un input number vide sa valeur si
+          // l'utilisateur saisit une virgule décimale sur certains claviers
+          // mobiles. On garde le pavé numérique via inputMode et on n'accepte
+          // que chiffres, point et virgule.
+          type="text"
           inputMode="decimal"
-          min="0"
-          step="0.01"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
           placeholder="0"
           className="w-full rounded-lg border border-ink/20 bg-white/60 px-3 py-2.5 text-2xl font-bold text-ink focus:border-ink/50 focus:outline-none"
         />
@@ -160,10 +212,7 @@ export function TransactionForm({ initial, onDone }: Props) {
         {initial && (
           <button
             type="button"
-            onClick={() => {
-              deleteTransaction(initial.id);
-              onDone();
-            }}
+            onClick={remove}
             className="rounded-lg border border-brickDeep/40 px-4 py-2.5 font-medium text-brickDeep transition hover:bg-brickDeep/10"
           >
             Supprimer
@@ -178,6 +227,13 @@ export function TransactionForm({ initial, onDone }: Props) {
           {initial ? "Enregistrer" : "Ajouter"}
         </button>
       </div>
+
+      <RecurringScopeDialog
+        open={scopePrompt !== null}
+        action={scopePrompt === "delete" ? "delete" : "save"}
+        onChoose={applyScope}
+        onCancel={() => setScopePrompt(null)}
+      />
     </div>
   );
 }

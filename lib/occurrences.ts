@@ -1,4 +1,5 @@
 import { Transaction } from "./types";
+import { toISODate } from "./utils";
 
 /**
  * Une occurrence : la matérialisation d'une transaction à une date effective.
@@ -13,11 +14,6 @@ export interface Occurrence {
   /** Clé stable pour le rendu (id + mois d'occurrence) */
   key: string;
 }
-
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
 
 /** Occurrences des transactions dont la date effective tombe dans [start, end). */
 export function occurrencesInRange(
@@ -34,6 +30,10 @@ export function occurrencesInRange(
       }
       continue;
     }
+    // Exceptions : mois sautés et éventuelle fin de série (yyyy-mm inclus).
+    const exclude = new Set(t.excludeMonths ?? []);
+    const until = t.recurringUntil;
+
     // Départ : le plus tardif du mois d'origine et du mois de `start`.
     let y = start.getFullYear();
     let m = start.getMonth();
@@ -43,11 +43,14 @@ export function occurrencesInRange(
     }
     const day = origin.getDate();
     for (;;) {
+      const monthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+      // Comparaison lexicographique valide sur le format yyyy-mm.
+      if (until && monthKey > until) break;
       const lastDay = new Date(y, m + 1, 0).getDate();
       const occ = new Date(y, m, Math.min(day, lastDay));
       if (occ >= end) break;
-      if (occ >= origin && occ >= start) {
-        out.push({ tx: t, date: iso(occ), key: `${t.id}:${y}-${m}` });
+      if (occ >= origin && occ >= start && !exclude.has(monthKey)) {
+        out.push({ tx: t, date: toISODate(occ), key: `${t.id}:${monthKey}` });
       }
       m += 1;
       if (m > 11) {

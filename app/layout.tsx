@@ -24,10 +24,9 @@ export const viewport: Viewport = {
   themeColor: "#0B1120",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  // Indispensable en PWA plein écran : permet d'occuper l'écran jusqu'aux
-  // bords tout en exposant env(safe-area-inset-*) pour l'encoche et la
-  // barre d'accueil.
+  // Pas de maximumScale : le pincer-pour-zoomer reste autorisé (accessibilité).
+  // Indispensable en PWA plein écran : occupe l'écran jusqu'aux bords tout en
+  // exposant env(safe-area-inset-*) pour l'encoche et la barre d'accueil.
   viewportFit: "cover"
 };
 

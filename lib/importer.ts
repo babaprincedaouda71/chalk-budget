@@ -32,8 +32,16 @@ const normalize = (s: string) =>
 
 /* ---------- Montants ---------- */
 
-/** "MAD 1.000,50", "-60.00", "1 234,5" → nombre (signé) ou null. */
-export function parseImportAmount(raw: string): number | null {
+/**
+ * "MAD 1.000,50", "-60.00", "1 234,5" → nombre (signé) ou null.
+ *
+ * `euStyle`, déduit au niveau du fichier (voir detectEuStyle), lève
+ * l'ambiguïté d'un nombre à points seuls comme "1.500" :
+ * true → point = séparateur de milliers → 1500 ;
+ * false → point = décimale → 1.5.
+ * Sans indice : heuristique locale (groupes de 3 chiffres = milliers).
+ */
+export function parseImportAmount(raw: string, euStyle?: boolean): number | null {
   let s = raw.replace(/\s/g, "").replace(/[^\d.,+-]/g, "");
   if (!/\d/.test(s)) return null;
   const neg = s.includes("-");
@@ -41,21 +49,44 @@ export function parseImportAmount(raw: string): number | null {
   const lastComma = s.lastIndexOf(",");
   const lastDot = s.lastIndexOf(".");
   if (lastComma >= 0 && lastDot >= 0) {
-    // Le séparateur le plus à droite est la décimale
+    // Les deux séparateurs présents : le plus à droite est la décimale.
     if (lastComma > lastDot) s = s.replace(/\./g, "").replace(",", ".");
     else s = s.replace(/,/g, "");
   } else if (lastComma >= 0) {
+    // Virgule seule : décimale si ≤ 2 chiffres après, sinon millier ("1,000").
     const decimals = s.length - lastComma - 1;
     s =
       decimals <= 2
         ? s.slice(0, lastComma).replace(/,/g, "") + "." + s.slice(lastComma + 1)
-        : s.replace(/,/g, ""); // "1,000" = millier
+        : s.replace(/,/g, "");
   } else if (lastDot >= 0) {
-    // "1.000" (millier européen) vs "60.00" (décimal)
-    if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+    // Point seul : ambigu ("1.500" = 1500 ou 1,5 ?). Convention du fichier si
+    // connue, sinon heuristique (groupes de 3 chiffres → milliers).
+    if (euStyle === true) s = s.replace(/\./g, "");
+    else if (euStyle === undefined && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+      s = s.replace(/\./g, "");
+    }
+    // euStyle === false → point = décimale : on ne touche à rien.
   }
   const n = parseFloat(s);
   return Number.isFinite(n) ? (neg ? -n : n) : null;
+}
+
+/**
+ * Déduit la convention décimale d'un fichier à partir de ses cellules de
+ * montant : une virgule suivie de 1-2 chiffres en fin de nombre indique le
+ * style européen (virgule décimale) ; un point suivi de 1-2 chiffres, le style
+ * anglo (point décimal). Renvoie undefined si indécidable.
+ */
+function detectEuStyle(cells: string[]): boolean | undefined {
+  let eu = 0;
+  let us = 0;
+  for (const raw of cells) {
+    const s = raw.replace(/\s/g, "");
+    if (/,\d{1,2}$/.test(s)) eu++;
+    else if (/\.\d{1,2}$/.test(s)) us++;
+  }
+  return eu > us ? true : us > eu ? false : undefined;
 }
 
 /* ---------- Dates ---------- */
@@ -202,7 +233,11 @@ function parseJson(text: string, categories: Category[]): ImportResult {
       date,
       categoryId: knownIds.has(t.categoryId) ? t.categoryId : FALLBACK_EXPENSE_ID,
       note: typeof t.note === "string" ? t.note.slice(0, 120) : undefined,
-      recurring: !!t.recurring
+      recurring: !!t.recurring,
+      ...(typeof t.recurringUntil === "string" ? { recurringUntil: t.recurringUntil } : {}),
+      ...(Array.isArray(t.excludeMonths)
+        ? { excludeMonths: t.excludeMonths.filter((x: unknown) => typeof x === "string") }
+        : {})
     });
   }
   return { transactions, newCategories: [], skipped };
@@ -221,15 +256,18 @@ function parseCsvTransactions(text: string, categories: Category[]): ImportResul
   const typeIdx = findColumn(headers, "type");
   let firstDataRow = 1;
 
-  // …ou heuristique sur une ligne de données si les en-têtes sont introuvables.
+  // …heuristique pour les colonnes MANQUANTES seulement (ne jamais écraser une
+  // colonne déjà identifiée par son en-tête).
   if (dateIdx < 0 || amountIdx < 0) {
     const sample = rows.length > 1 ? rows[1] : rows[0];
-    dateIdx = sample.findIndex((c) => parseImportDate(c) !== null);
-    // montant : dernière colonne numérique qui n'est pas la date
-    for (let i = sample.length - 1; i >= 0; i--) {
-      if (i !== dateIdx && parseImportAmount(sample[i]) !== null) {
-        amountIdx = i;
-        break;
+    if (dateIdx < 0) dateIdx = sample.findIndex((c) => parseImportDate(c) !== null);
+    if (amountIdx < 0) {
+      // montant : dernière colonne numérique qui n'est pas la date
+      for (let i = sample.length - 1; i >= 0; i--) {
+        if (i !== dateIdx && parseImportAmount(sample[i]) !== null) {
+          amountIdx = i;
+          break;
+        }
       }
     }
     if (dateIdx < 0 || amountIdx < 0) {
@@ -246,15 +284,18 @@ function parseCsvTransactions(text: string, categories: Category[]): ImportResul
       );
     if (categoryIdx < 0) categoryIdx = textCols[0] ?? -1;
     if (noteIdx < 0) noteIdx = textCols[1] ?? -1;
-    // Pas d'en-têtes reconnus : la première ligne est-elle déjà des données ?
+    // La première ligne est-elle un en-tête (dateIdx illisible) ou des données ?
     firstDataRow = parseImportDate(rows[0][dateIdx] ?? "") ? 0 : 1;
   }
 
   const dataRows = rows.slice(firstDataRow);
 
+  // Convention décimale déduite du fichier entier (cohérence millier/décimale).
+  const euStyle = detectEuStyle(dataRows.map((r) => r[amountIdx] ?? ""));
+
   // Y a-t-il des montants négatifs ? (si oui : négatif = dépense, positif = revenu)
   const hasNegative = dataRows.some((r) => {
-    const n = parseImportAmount(r[amountIdx] ?? "");
+    const n = parseImportAmount(r[amountIdx] ?? "", euStyle);
     return n !== null && n < 0;
   });
 
@@ -272,7 +313,7 @@ function parseCsvTransactions(text: string, categories: Category[]): ImportResul
 
   for (const r of dataRows) {
     const date = parseImportDate(r[dateIdx] ?? "");
-    const rawAmount = parseImportAmount(r[amountIdx] ?? "");
+    const rawAmount = parseImportAmount(r[amountIdx] ?? "", euStyle);
     if (!date || !rawAmount) {
       skipped++;
       continue;

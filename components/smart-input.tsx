@@ -5,6 +5,7 @@ import { Send, Sparkles } from "lucide-react";
 import { useBudget } from "@/lib/store";
 import { leftoverWords, parseLocally } from "@/lib/parser";
 import { ParsedItem } from "@/lib/types";
+import { toISODate } from "@/lib/utils";
 import { CategoryIcon } from "./category-icon";
 
 /**
@@ -42,7 +43,7 @@ export function SmartInput() {
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toISODate();
     addTransactions(
       items.map((i) => ({
         type: i.type,
