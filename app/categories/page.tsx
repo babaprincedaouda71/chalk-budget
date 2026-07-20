@@ -18,6 +18,8 @@ export default function CategoriesPage() {
   const [kind, setKind] = useState<TxType>("expense");
   const [keywords, setKeywords] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Onglet affiché : dépenses ou revenus (interrupteur à segments).
+  const [tab, setTab] = useState<TxType>("expense");
 
   // Dernière catégorie de son type : suppression impossible (les transactions
   // n'auraient plus de catégorie de repli).
@@ -28,7 +30,7 @@ export default function CategoriesPage() {
     setEditing(null);
     setName("");
     setIcon(ICON_NAMES[0]);
-    setKind("expense");
+    setKind(tab); // pré-sélectionne le type de l'onglet courant
     setKeywords("");
     setConfirmDelete(false);
     setOpen(true);
@@ -64,11 +66,8 @@ export default function CategoriesPage() {
     setOpen(false);
   };
 
-  const Section = ({ kind, title }: { kind: TxType; title: string }) => (
+  const Section = ({ kind }: { kind: TxType }) => (
     <section className="mb-6">
-      <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-inkSoft">
-        {title}
-      </h2>
       <ul className="divide-y divide-ink/10 rounded-xl border border-ink/15 bg-white/40">
         {categories
           .filter((c) => c.kind === kind)
@@ -97,17 +96,35 @@ export default function CategoriesPage() {
 
   return (
     <div className="paper-bg flex min-h-0 flex-1 flex-col px-4 pt-5 text-ink">
-      {/* En-tête fixe ; la liste défile en dessous */}
+      {/* En-tête fixe : titre + interrupteur ; la liste défile en dessous */}
       <h1 className="mb-4 text-xl font-bold">Catégories</h1>
-      <p className="mb-4 text-sm text-inkSoft">
-        Touchez une catégorie pour la modifier ou la supprimer. Les mots-clés
-        alimentent l&apos;ajout magique : ils servent à deviner la catégorie
-        d&apos;un article saisi en vrac.
-      </p>
+
+      {/* Interrupteur à segments Dépenses / Revenus */}
+      <div
+        role="tablist"
+        aria-label="Type de catégories"
+        className="mb-4 flex rounded-xl bg-ink/5 p-1 ring-1 ring-ink/10"
+      >
+        {(["expense", "income"] as TxType[]).map((k) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={cn(
+              "flex-1 rounded-lg px-3 py-2 text-sm font-bold transition",
+              tab === k
+                ? "bg-white text-ink shadow-sm"
+                : "text-inkSoft hover:text-ink"
+            )}
+          >
+            {k === "expense" ? "Dépenses" : "Revenus"}
+          </button>
+        ))}
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28">
-        <Section kind="expense" title="Dépenses" />
-        <Section kind="income" title="Revenus" />
+        <Section kind={tab} />
 
         <button
           onClick={startCreate}
