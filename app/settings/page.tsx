@@ -10,7 +10,7 @@ const CURRENCIES = ["€", "$", "MAD", "FCFA", "£", "CHF", "CAD"];
 
 const SYNC_LABELS: Record<string, string> = {
   syncing: "Synchronisation…",
-  ok: "Synchronisé ✓",
+  ok: "Synchronisé",
   error: "Erreur réseau — vos données restent enregistrées sur cet appareil.",
   unavailable: "Indisponible : aucune base de données configurée sur le serveur."
 };
@@ -72,7 +72,7 @@ export default function SettingsPage() {
       preview.transactions
     );
     setImportDone(
-      `✓ ${preview.transactions.length} transaction${
+      `${preview.transactions.length} transaction${
         preview.transactions.length > 1 ? "s" : ""
       } importée${preview.transactions.length > 1 ? "s" : ""}.`
     );

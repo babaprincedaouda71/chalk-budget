@@ -11,7 +11,7 @@ import { CategoryIcon } from "./category-icon";
  * "Ajout magique" : l'utilisateur tape par ex. "tomates, oignons 50, tondeuse 182".
  * L'analyse est faite entièrement dans le navigateur par le parseur local
  * déterministe (lib/parser.ts) — aucun appel réseau, fonctionne hors ligne.
- * Les tickets sont ajoutés instantanément au store → la barre de progression
+ * Les transactions sont ajoutées instantanément au store → la barre de progression
  * et le graphique circulaire se mettent à jour dans la foulée.
  */
 export function SmartInput() {
@@ -89,7 +89,7 @@ export function SmartInput() {
           ) : (
             <>
               <p className="mb-1 text-chalkDim">
-                {feedback.items.length} ticket{feedback.items.length > 1 ? "s" : ""} ajouté
+                {feedback.items.length} transaction{feedback.items.length > 1 ? "s" : ""} ajoutée
                 {feedback.items.length > 1 ? "s" : ""} :
               </p>
               <ul className="space-y-1">
