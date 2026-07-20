@@ -387,7 +387,7 @@ export default function TransactionsPage() {
   /* ---------- Rendu ---------- */
 
   return (
-    <div className="paper-bg notebook-margin flex min-h-0 flex-1 flex-col text-ink">
+    <div className="paper-bg flex min-h-0 flex-1 flex-col text-ink">
       {/* En-tête : mode édition / période / ajout */}
       <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-2 pl-4">
         <button
@@ -595,11 +595,9 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Liste plate des transactions — seule zone défilante de la page.
-          Les lignes du carnet sont sur le conteneur interne pour défiler
-          avec les rangées (et rester alignées). */}
+      {/* Liste plate des transactions — seule zone défilante de la page. */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="notebook-lines min-h-full pb-28 pl-4 pr-4">
+        <div className="min-h-full pb-28 pl-4 pr-4">
         {sorted.length === 0 && (
           <p className="pt-10 text-center text-inkSoft">
             {hasFilters

@@ -61,17 +61,6 @@ body {
   background-color: theme("colors.paper");
 }
 
-/* Héritage skeuomorphe neutralisé (lignes de cahier, marge rouge, cadre bois) */
-.notebook-lines {
-  background-image: none;
-}
-.notebook-margin {
-  box-shadow: none;
-}
-.wood-frame {
-  border: 0;
-}
-
 /* Scrollbar discrète */
 ::-webkit-scrollbar {
   width: 0;

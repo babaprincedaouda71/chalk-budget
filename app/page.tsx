@@ -29,7 +29,7 @@ export default function DashboardPage() {
     .filter((e) => e.total > 0);
 
   return (
-    <div className="board-bg wood-frame flex min-h-0 flex-1 flex-col pt-5 text-chalk">
+    <div className="board-bg flex min-h-0 flex-1 flex-col pt-5 text-chalk">
       {/* Partie fixe : mois, ratio, ajout magique */}
       <div className="space-y-5">
         <MonthSelector />

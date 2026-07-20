@@ -254,25 +254,31 @@ export default function SettingsPage() {
               onClick={() => setConfirmReset(true)}
               className="rounded-lg border border-brickDeep/40 py-2.5 font-medium text-brickDeep transition hover:bg-brickDeep/10"
             >
-              Tout effacer…
+              Effacer les transactions…
             </button>
           ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmReset(false)}
-                className="flex-1 rounded-lg border border-ink/25 py-2.5"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => {
-                  resetAll();
-                  setConfirmReset(false);
-                }}
-                className="flex-1 rounded-lg bg-brickDeep py-2.5 font-bold text-paper"
-              >
-                Confirmer l&apos;effacement
-              </button>
+            <div className="space-y-2">
+              <p className="text-sm text-inkSoft">
+                Toutes vos transactions seront supprimées (vos catégories et
+                votre devise sont conservées).
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmReset(false)}
+                  className="flex-1 rounded-lg border border-ink/25 py-2.5"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    resetAll();
+                    setConfirmReset(false);
+                  }}
+                  className="flex-1 rounded-lg bg-brickDeep py-2.5 font-bold text-paper"
+                >
+                  Effacer
+                </button>
+              </div>
             </div>
           )}
         </div>
