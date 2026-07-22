@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { CategoryIcon } from "./category-icon";
-import { CategoryPicker } from "./category-picker";
+import { CategoryList } from "./category-picker";
 import { RecurringScopeDialog } from "./recurring-scope-dialog";
 import { SegmentedControl } from "./segmented-control";
 import { useBudget } from "@/lib/store";
@@ -110,6 +110,34 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
     onDone();
   };
 
+  // Sous-page « choix de catégorie » : affichée DANS le même dialogue
+  // (échange de contenu). Ne pas rouvrir un second Dialog modal par-dessus
+  // celui du formulaire : le verrou de défilement du dialogue parent bloque
+  // le scroll de tout contenu portalé hors de son sous-arbre.
+  if (pickerOpen) {
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setPickerOpen(false)}
+          className="-ml-1 flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-medium text-inkSoft transition hover:text-ink"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </button>
+        <p className="font-bold text-ink">Choisir une catégorie</p>
+        <CategoryList
+          type={type}
+          selectedId={categoryId}
+          onSelect={(id) => {
+            if (id) setCategoryId(id);
+            setPickerOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Type : dépense ou revenu */}
@@ -173,17 +201,6 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
           <ChevronRight className="h-4 w-4 shrink-0 text-inkSoft" />
         </button>
       </div>
-
-      <CategoryPicker
-        open={pickerOpen}
-        type={type}
-        selectedId={categoryId}
-        onSelect={(id) => {
-          if (id) setCategoryId(id);
-          setPickerOpen(false);
-        }}
-        onClose={() => setPickerOpen(false)}
-      />
 
       {/* Note */}
       <label className="block">
