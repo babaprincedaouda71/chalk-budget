@@ -140,7 +140,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<BudgetState>({
     transactions: [],
     categories: DEFAULT_CATEGORIES,
-    currency: "€",
+    currency: "MAD",
     currencyUpdatedAt: 0
   });
   const [syncCode, setSyncCodeState] = useState<string | null>(null);
@@ -180,7 +180,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         {
           transactions: data.transactions ?? [],
           categories: data.categories?.length ? data.categories : DEFAULT_CATEGORIES,
-          currency: data.currency ?? "€"
+          currency: data.currency ?? "MAD"
         },
         data.catalogVersion
       );
@@ -298,7 +298,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
           {
             transactions: saved.transactions ?? [],
             categories: saved.categories?.length ? saved.categories : DEFAULT_CATEGORIES,
-            currency: saved.currency ?? "€"
+            currency: saved.currency ?? "MAD"
           },
           saved.catalogVersion
         );
