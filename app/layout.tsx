@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { BudgetProvider } from "@/lib/store";
 import { TabBar } from "@/components/tab-bar";
 
@@ -49,6 +50,7 @@ export default function RootLayout({
             </main>
             <TabBar />
           </div>
+          <Analytics />
         </BudgetProvider>
       </body>
     </html>
