@@ -389,21 +389,21 @@ export default function TransactionsPage() {
   return (
     <div className="paper-bg flex min-h-0 flex-1 flex-col text-ink">
       {/* En-tête : mode édition / période / ajout */}
-      <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-2 pl-4">
+      <header className="grid grid-cols-3 items-center px-4 pt-4 pb-2">
         <button
           onClick={() => {
             setEditMode((v) => !v);
             setArmedDelete(null);
           }}
           className={cn(
-            "text-sm font-medium transition",
+            "justify-self-start text-sm font-medium transition",
             editMode ? "font-bold text-ink" : "text-inkSoft hover:text-ink"
           )}
         >
           {editMode ? "OK" : "Modifier"}
         </button>
 
-        <div className="relative">
+        <div className="relative justify-self-center">
           <button
             onClick={() => setOpenMenu(openMenu === "period" ? null : "period")}
             className="flex items-center gap-1 rounded-lg border border-ink/20 bg-white/50 px-4 py-1.5 font-bold transition hover:border-ink/50"
@@ -434,15 +434,15 @@ export default function TransactionsPage() {
         <button
           onClick={() => setAddOpen(true)}
           aria-label="Ajouter une transaction"
-          className="rounded-full p-1.5 text-ink transition hover:bg-ink/10"
+          className="justify-self-end rounded-full p-1.5 text-ink transition hover:bg-ink/10"
         >
           <Plus className="h-6 w-6" strokeWidth={2.2} />
         </button>
       </header>
 
       {/* Barre d'outils : tri / navigation / export */}
-      <div className="flex items-center justify-between border-b-2 border-ink/15 px-4 pb-2 pl-4">
-        <div className="relative">
+      <div className="grid grid-cols-3 items-center border-b-2 border-ink/15 px-4 pb-2">
+        <div className="relative justify-self-start">
           <button
             onClick={() => setOpenMenu(openMenu === "sort" ? null : "sort")}
             className="text-sm font-medium text-inkSoft transition hover:text-ink"
@@ -464,7 +464,7 @@ export default function TransactionsPage() {
           </Menu>
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center justify-self-center gap-8">
           <button onClick={() => shift(-1)} aria-label="Période précédente" className="text-inkSoft hover:text-ink">
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -473,7 +473,7 @@ export default function TransactionsPage() {
           </button>
         </div>
 
-        <div className="relative">
+        <div className="relative justify-self-end">
           <button
             onClick={() => setOpenMenu(openMenu === "export" ? null : "export")}
             className="text-sm font-medium text-inkSoft transition hover:text-ink"
