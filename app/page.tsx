@@ -8,7 +8,7 @@ import { SmartInput } from "@/components/smart-input";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { CategoryIcon } from "@/components/category-icon";
 import { TransactionForm } from "@/components/transaction-form";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { formatAmount, useBudget } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -112,7 +112,8 @@ export default function DashboardPage() {
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogTitle>Nouvelle transaction</DialogTitle>
+          {/* Le titre du dialogue est géré par TransactionForm (contextuel :
+              formulaire ou choix de catégorie). */}
           <TransactionForm onDone={() => setAddOpen(false)} />
         </DialogContent>
       </Dialog>

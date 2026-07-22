@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { DialogTitle } from "@/components/ui/dialog";
 import { CategoryIcon } from "./category-icon";
 import { CategoryList } from "./category-picker";
 import { RecurringScopeDialog } from "./recurring-scope-dialog";
@@ -111,21 +112,24 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
   };
 
   // Sous-page « choix de catégorie » : affichée DANS le même dialogue
-  // (échange de contenu). Ne pas rouvrir un second Dialog modal par-dessus
-  // celui du formulaire : le verrou de défilement du dialogue parent bloque
-  // le scroll de tout contenu portalé hors de son sous-arbre.
+  // (échange de contenu), avec le titre du dialogue qui devient contextuel.
+  // Ne pas rouvrir un second Dialog modal par-dessus celui du formulaire :
+  // le verrou de défilement du dialogue parent bloque le scroll de tout
+  // contenu portalé hors de son sous-arbre.
   if (pickerOpen) {
     return (
-      <div className="space-y-3">
-        <button
-          type="button"
-          onClick={() => setPickerOpen(false)}
-          className="-ml-1 flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-medium text-inkSoft transition hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour
-        </button>
-        <p className="font-bold text-ink">Choisir une catégorie</p>
+      <div>
+        <header className="mb-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPickerOpen(false)}
+            aria-label="Retour au formulaire"
+            className="-ml-2 rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <DialogTitle className="mb-0">Choisir une catégorie</DialogTitle>
+        </header>
         <CategoryList
           type={type}
           selectedId={categoryId}
@@ -140,6 +144,10 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
 
   return (
     <div className="space-y-4">
+      <DialogTitle>
+        {initial ? "Modifier la transaction" : "Nouvelle transaction"}
+      </DialogTitle>
+
       {/* Type : dépense ou revenu */}
       <SegmentedControl
         ariaLabel="Type de transaction"

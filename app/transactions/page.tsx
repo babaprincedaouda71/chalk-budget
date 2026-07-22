@@ -10,7 +10,7 @@ import { CategoryPicker } from "@/components/category-picker";
 import { PeriodNav, PeriodPill } from "@/components/period-control";
 import { TransactionForm } from "@/components/transaction-form";
 import { RecurringScopeDialog } from "@/components/recurring-scope-dialog";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { formatAmount, useBudget } from "@/lib/store";
 import { Occurrence, occurrencesInRange } from "@/lib/occurrences";
 import { RecurringScope, TxType } from "@/lib/types";
@@ -606,16 +606,16 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      {/* Le titre des dialogues est géré par TransactionForm (contextuel :
+          formulaire ou choix de catégorie). */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogTitle>Nouvelle transaction</DialogTitle>
           <TransactionForm onDone={() => setAddOpen(false)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
-          <DialogTitle>Modifier la transaction</DialogTitle>
           {editing && (
             <TransactionForm
               initial={editing.tx}
