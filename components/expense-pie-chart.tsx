@@ -15,7 +15,7 @@ export function ExpensePieChart() {
   if (expenseByCategory.length === 0) {
     return (
       <div className="px-4 py-8 text-center">
-        <p className="text-sm text-inkSoft">Aucune dépense ce mois-ci.</p>
+        <p className="text-sm text-inkSoft">Aucune dépense sur cette période.</p>
         <p className="mt-1 text-xs text-inkSoft/60">
           Ajoutez une transaction via l&apos;ajout magique ou le bouton +.
         </p>

@@ -2,30 +2,23 @@
 
 import { useMemo, useState } from "react";
 import {
-  Check, ChevronDown, ChevronLeft, ChevronRight, FileSpreadsheet, FileText,
+  Check, ChevronDown, ChevronRight, FileSpreadsheet, FileText,
   Plus, Repeat, Search, X, type LucideIcon
 } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { CategoryPicker } from "@/components/category-picker";
+import { PeriodNav, PeriodPill } from "@/components/period-control";
 import { TransactionForm } from "@/components/transaction-form";
 import { RecurringScopeDialog } from "@/components/recurring-scope-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { MONTH_NAMES, formatAmount, useBudget } from "@/lib/store";
+import { formatAmount, useBudget } from "@/lib/store";
 import { Occurrence, occurrencesInRange } from "@/lib/occurrences";
 import { RecurringScope, TxType } from "@/lib/types";
 import { cn, round2 } from "@/lib/utils";
 
 type TypeFilter = "all" | TxType;
-type Period = "day" | "week" | "month" | "year";
 type SortKey = "date" | "amount" | "category";
 type MenuName = "period" | "sort" | "export" | null;
-
-const PERIOD_LABELS: Record<Period, string> = {
-  day: "Jour",
-  week: "Semaine",
-  month: "Mois",
-  year: "Année"
-};
 
 const SORT_LABELS: Record<SortKey, string> = {
   date: "Date (récent d'abord)",
@@ -110,7 +103,8 @@ function MenuItem({
 
 export default function TransactionsPage() {
   const {
-    transactions, categories, currency, month, setMonth, deleteTransaction, deleteRecurring
+    transactions, categories, currency, range, rangeLabel,
+    deleteTransaction, deleteRecurring
   } = useBudget();
 
   const [editing, setEditing] = useState<Occurrence | null>(null);
@@ -121,78 +115,12 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [filterPickerOpen, setFilterPickerOpen] = useState(false);
-  const [period, setPeriod] = useState<Period>("month");
-  const [anchor, setAnchor] = useState<Date>(() => {
-    const now = new Date();
-    return now.getFullYear() === month.year && now.getMonth() === month.month
-      ? now
-      : new Date(month.year, month.month, 1);
-  });
   const [sort, setSort] = useState<SortKey>("date");
   const [openMenu, setOpenMenu] = useState<MenuName>(null);
   const [editMode, setEditMode] = useState(false);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
 
   const cat = (id: string) => categories.find((c) => c.id === id);
-
-  // Bornes [start, end) de la période affichée.
-  const range = useMemo(() => {
-    const a = anchor;
-    if (period === "day") {
-      const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-      return { start, end: new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1) };
-    }
-    if (period === "week") {
-      const dow = (a.getDay() + 6) % 7; // semaine commençant le lundi
-      const start = new Date(a.getFullYear(), a.getMonth(), a.getDate() - dow);
-      return {
-        start,
-        end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7)
-      };
-    }
-    if (period === "year") {
-      return {
-        start: new Date(a.getFullYear(), 0, 1),
-        end: new Date(a.getFullYear() + 1, 0, 1)
-      };
-    }
-    return {
-      start: new Date(a.getFullYear(), a.getMonth(), 1),
-      end: new Date(a.getFullYear(), a.getMonth() + 1, 1)
-    };
-  }, [anchor, period]);
-
-  const rangeLabel = useMemo(() => {
-    if (period === "day") {
-      return anchor.toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric"
-      });
-    }
-    if (period === "week") {
-      const endIncl = new Date(range.end);
-      endIncl.setDate(endIncl.getDate() - 1);
-      return `${range.start.getDate()} – ${endIncl.toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric"
-      })}`;
-    }
-    if (period === "year") return String(anchor.getFullYear());
-    return `${MONTH_NAMES[anchor.getMonth()]} ${anchor.getFullYear()}`;
-  }, [period, anchor, range]);
-
-  const shift = (delta: number) => {
-    const a = new Date(anchor);
-    if (period === "day") a.setDate(a.getDate() + delta);
-    else if (period === "week") a.setDate(a.getDate() + 7 * delta);
-    else if (period === "year") a.setFullYear(a.getFullYear() + delta);
-    else a.setMonth(a.getMonth() + delta, 1);
-    setAnchor(a);
-    // Garde le tableau noir (dashboard) sur le même mois.
-    setMonth({ year: a.getFullYear(), month: a.getMonth() });
-  };
 
   const occurrences = useMemo(
     () => occurrencesInRange(transactions, range.start, range.end),
@@ -419,33 +347,10 @@ export default function TransactionsPage() {
           {editMode ? "OK" : "Modifier"}
         </button>
 
-        <div className="relative justify-self-center">
-          <button
-            onClick={() => setOpenMenu(openMenu === "period" ? null : "period")}
-            className="flex items-center gap-1 rounded-lg border border-ink/20 bg-white/50 px-4 py-1.5 font-bold transition hover:border-ink/50"
-          >
-            {rangeLabel}
-            <ChevronDown className="h-4 w-4 text-inkSoft" />
-          </button>
-          <Menu
-            open={openMenu === "period"}
-            onClose={() => setOpenMenu(null)}
-            title="Afficher par"
-            align="center"
-          >
-            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-              <MenuItem
-                key={p}
-                label={PERIOD_LABELS[p]}
-                selected={period === p}
-                onClick={() => {
-                  setPeriod(p);
-                  setOpenMenu(null);
-                }}
-              />
-            ))}
-          </Menu>
-        </div>
+        <PeriodPill
+          open={openMenu === "period"}
+          onOpenChange={(v) => setOpenMenu(v ? "period" : null)}
+        />
 
         <button
           onClick={() => setAddOpen(true)}
@@ -480,22 +385,7 @@ export default function TransactionsPage() {
           </Menu>
         </div>
 
-        <div className="flex items-center justify-self-center gap-4">
-          <button
-            onClick={() => shift(-1)}
-            aria-label="Période précédente"
-            className="rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <button
-            onClick={() => shift(1)}
-            aria-label="Période suivante"
-            className="rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        </div>
+        <PeriodNav className="justify-self-center" />
 
         <div className="relative justify-self-end">
           <button

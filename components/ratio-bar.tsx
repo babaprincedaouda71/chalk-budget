@@ -55,7 +55,7 @@ export function RatioBar() {
         </span>
         <span className="text-inkSoft">
           {empty
-            ? "Rien ce mois-ci"
+            ? "Rien sur cette période"
             : overspent
               ? "Budget dépassé !"
               : `Reste ${formatAmount(income - expense, currency)}`}

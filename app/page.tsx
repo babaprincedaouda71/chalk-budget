@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { MonthSelector } from "@/components/month-selector";
+import { PeriodNav, PeriodPill } from "@/components/period-control";
 import { RatioBar } from "@/components/ratio-bar";
 import { SmartInput } from "@/components/smart-input";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
@@ -13,7 +13,7 @@ import { formatAmount, useBudget } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { ready, expenseByCategory, monthTransactions, totals, currency, categories } =
+  const { ready, expenseByCategory, periodTransactions, totals, currency, categories } =
     useBudget();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -22,17 +22,26 @@ export default function DashboardPage() {
     .filter((c) => c.kind === "income")
     .map((category) => ({
       category,
-      total: monthTransactions
+      total: periodTransactions
         .filter((t) => t.type === "income" && t.categoryId === category.id)
         .reduce((s, t) => s + t.amount, 0)
     }))
     .filter((e) => e.total > 0);
 
   return (
-    <div className="paper-bg flex min-h-0 flex-1 flex-col pt-5 text-ink">
-      {/* Partie fixe : mois, ratio, ajout magique */}
+    <div className="paper-bg flex min-h-0 flex-1 flex-col pt-4 text-ink">
+      {/* Partie fixe : temporalité, ratio, ajout magique */}
       <div className="space-y-5">
-        <MonthSelector />
+        {/* En-tête : pilule de période centrée + navigation dessous
+            (structure identique à la page Transactions). */}
+        <div>
+          <div className="grid grid-cols-3 items-center px-4">
+            <span aria-hidden />
+            <PeriodPill />
+            <span aria-hidden />
+          </div>
+          <PeriodNav className="mt-1" />
+        </div>
         <RatioBar />
         <SmartInput />
       </div>
@@ -72,7 +81,7 @@ export default function DashboardPage() {
 
             {incomeByCategory.length === 0 && expenseByCategory.length === 0 && (
               <li className="py-4 text-center text-sm font-normal text-inkSoft">
-                Aucune opération ce mois-ci — notez la première.
+                Aucune opération sur cette période — notez la première.
               </li>
             )}
 

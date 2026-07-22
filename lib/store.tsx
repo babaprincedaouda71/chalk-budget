@@ -20,6 +20,17 @@ import { extractLearnableWords, normalizeWord } from "./parser";
 import { occurrencesInRange } from "./occurrences";
 import { mergeStates, signature, SyncState } from "./merge";
 import { round2 } from "./utils";
+import {
+  MONTH_NAMES,
+  Period,
+  periodLabel,
+  periodRange,
+  shiftAnchor
+} from "./period";
+
+// Ré-exporté pour compatibilité (anciens imports depuis "@/lib/store").
+export { MONTH_NAMES };
+export type { Period };
 
 /**
  * Persistance : localStorage (source primaire, hors ligne d'abord) +
@@ -46,8 +57,16 @@ export type SyncStatus = "off" | "syncing" | "ok" | "error" | "unavailable";
 
 interface BudgetContextValue extends BudgetState {
   ready: boolean;
-  month: { year: number; month: number }; // month : 0-11
-  setMonth: (m: { year: number; month: number }) => void;
+  /** Temporalité affichée, partagée par le dashboard et les transactions. */
+  period: Period;
+  setPeriod: (p: Period) => void;
+  anchor: Date;
+  /** Décale la période affichée de ±1 (jour/semaine/mois/année). */
+  shiftPeriod: (delta: number) => void;
+  /** Bornes [start, end) de la période courante. */
+  range: { start: Date; end: Date };
+  /** Libellé de la période, pour la pilule centrale des en-têtes. */
+  rangeLabel: string;
   addTransactions: (tx: Omit<Transaction, "id">[]) => void;
   updateTransaction: (tx: Transaction) => void;
   deleteTransaction: (id: string) => void;
@@ -75,7 +94,7 @@ interface BudgetContextValue extends BudgetState {
   importBundle: (cats: Category[], txs: Omit<Transaction, "id">[]) => void;
   setCurrency: (c: string) => void;
   resetAll: () => void;
-  monthTransactions: Transaction[];
+  periodTransactions: Transaction[];
   totals: { income: number; expense: number; balance: number };
   expenseByCategory: { category: Category; total: number }[];
   syncCode: string | null;
@@ -132,11 +151,15 @@ function applyLearning(
 
 export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
-  // Initialiseur paresseux : le mois courant n'est calculé qu'au montage.
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
-  });
+  // Temporalité partagée : période + date d'ancrage (initialisées au montage).
+  const [period, setPeriod] = useState<Period>("month");
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const shiftPeriod = useCallback(
+    (delta: number) => setAnchor((a) => shiftAnchor(period, a, delta)),
+    [period]
+  );
+  const range = useMemo(() => periodRange(period, anchor), [period, anchor]);
+  const rangeLabel = useMemo(() => periodLabel(period, anchor), [period, anchor]);
   const [state, setState] = useState<BudgetState>({
     transactions: [],
     categories: DEFAULT_CATEGORIES,
@@ -676,33 +699,31 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
-   * Transactions "effectives" du mois affiché (mêmes règles que la page
+   * Transactions "effectives" de la période affichée (mêmes règles que la page
    * Transactions, via occurrencesInRange : une occurrence par récurrente
    * active, exclusions et fin de série respectées).
    */
-  const monthTransactions = useMemo(() => {
-    const start = new Date(month.year, month.month, 1);
-    const end = new Date(month.year, month.month + 1, 1);
-    return occurrencesInRange(liveTransactions, start, end)
+  const periodTransactions = useMemo(() => {
+    return occurrencesInRange(liveTransactions, range.start, range.end)
       .map((o) => o.tx)
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [liveTransactions, month]);
+  }, [liveTransactions, range]);
 
   const totals = useMemo(() => {
     let income = 0;
     let expense = 0;
-    for (const t of monthTransactions) {
+    for (const t of periodTransactions) {
       if (t.type === "income") income += t.amount;
       else expense += t.amount;
     }
     income = round2(income);
     expense = round2(expense);
     return { income, expense, balance: round2(income - expense) };
-  }, [monthTransactions]);
+  }, [periodTransactions]);
 
   const expenseByCategory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const t of monthTransactions) {
+    for (const t of periodTransactions) {
       if (t.type !== "expense") continue;
       map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + t.amount);
     }
@@ -714,15 +735,19 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         total: round2(total)
       }))
       .sort((a, b) => b.total - a.total);
-  }, [monthTransactions, liveCategories]);
+  }, [periodTransactions, liveCategories]);
 
   const value: BudgetContextValue = {
     ...state,
     transactions: liveTransactions,
     categories: liveCategories,
     ready,
-    month,
-    setMonth,
+    period,
+    setPeriod,
+    anchor,
+    shiftPeriod,
+    range,
+    rangeLabel,
     addTransactions,
     updateTransaction,
     deleteTransaction,
@@ -734,7 +759,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     importBundle,
     setCurrency,
     resetAll,
-    monthTransactions,
+    periodTransactions,
     totals,
     expenseByCategory,
     syncCode,
@@ -751,11 +776,6 @@ export function useBudget() {
   if (!ctx) throw new Error("useBudget doit être utilisé dans <BudgetProvider>");
   return ctx;
 }
-
-export const MONTH_NAMES = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-];
 
 export function formatAmount(n: number, currency: string) {
   return (
