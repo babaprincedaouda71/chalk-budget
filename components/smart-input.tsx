@@ -63,44 +63,44 @@ export function SmartInput() {
 
   return (
     <div className="px-4">
-      <div className="flex items-center gap-2 rounded-xl border border-chalk/20 bg-black/25 px-3 py-2 shadow-inner focus-within:border-chalk/50">
-        <Sparkles className="h-4 w-4 shrink-0 text-chalkGreen" aria-hidden />
+      <div className="flex items-center gap-2 rounded-xl border border-ink/15 bg-white/60 px-3 py-2 focus-within:border-ink/40">
+        <Sparkles className="h-4 w-4 shrink-0 text-greenDeep" aria-hidden />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="Ajout magique : tomates, oignons 50, tondeuse 182…"
           aria-label="Saisie rapide en langage naturel"
-          className="w-full bg-transparent text-sm text-chalk placeholder:text-chalkDim/50 focus:outline-none"
+          className="w-full bg-transparent text-sm text-ink placeholder:text-inkSoft/60 focus:outline-none"
         />
         <button
           onClick={submit}
           disabled={!text.trim()}
           aria-label="Envoyer"
-          className="rounded-lg bg-chalk/15 p-2 text-chalk transition hover:bg-chalk/25 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chalk/50"
+          className="rounded-lg bg-ink/10 p-2 text-ink transition hover:bg-ink/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
         >
           <Send className="h-4 w-4" />
         </button>
       </div>
 
       {feedback && (
-        <div className="mt-2 rounded-lg border border-chalk/15 bg-black/20 p-2 text-xs">
+        <div className="mt-2 rounded-lg border border-ink/10 bg-white/50 p-2 text-xs">
           {feedback.error ? (
-            <p className="chalk-red">{feedback.error}</p>
+            <p className="text-brickDeep">{feedback.error}</p>
           ) : (
             <>
-              <p className="mb-1 text-chalkDim">
+              <p className="mb-1 text-inkSoft">
                 {feedback.items.length} transaction{feedback.items.length > 1 ? "s" : ""} ajoutée
                 {feedback.items.length > 1 ? "s" : ""} :
               </p>
               <ul className="space-y-1">
                 {feedback.items.map((i, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-chalk">
-                    <CategoryIcon name={catIcon(i.categoryId)} className="h-3.5 w-3.5 text-chalkDim" />
+                  <li key={idx} className="flex items-center gap-2 text-ink">
+                    <CategoryIcon name={catIcon(i.categoryId)} className="h-3.5 w-3.5 text-inkSoft" />
                     <span className="flex-1 truncate">
                       {i.note} → {catName(i.categoryId)}
                     </span>
-                    <span className={i.type === "income" ? "chalk-green" : "chalk-red"}>
+                    <span className={i.type === "income" ? "text-greenDeep" : "text-brickDeep"}>
                       {i.type === "income" ? "+" : "−"}
                       {i.amount} {currency}
                     </span>
@@ -108,7 +108,7 @@ export function SmartInput() {
                 ))}
               </ul>
               {feedback.leftover && (
-                <p className="mt-1 text-chalkDim/70">
+                <p className="mt-1 text-inkSoft/70">
                   Ignoré (sans prix) : « {feedback.leftover} »
                 </p>
               )}

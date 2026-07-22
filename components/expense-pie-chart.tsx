@@ -3,10 +3,10 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatAmount, useBudget } from "@/lib/store";
 
-/** Palette moderne — lisible sur la surface sombre du tableau de bord. */
+/** Palette moderne — teintes soutenues, lisibles sur la surface claire. */
 const CHALK_COLORS = [
-  "#34D399", "#FB7185", "#FBBF24", "#38BDF8", "#A78BFA",
-  "#FB923C", "#2DD4BF", "#F472B6", "#A3E635", "#818CF8"
+  "#059669", "#E11D48", "#D97706", "#0284C7", "#7C3AED",
+  "#EA580C", "#0D9488", "#DB2777", "#65A30D", "#4F46E5"
 ];
 
 export function ExpensePieChart() {
@@ -15,9 +15,9 @@ export function ExpensePieChart() {
   if (expenseByCategory.length === 0) {
     return (
       <div className="px-4 py-8 text-center">
-        <p className="text-sm text-chalkDim">Aucune dépense ce mois-ci.</p>
-        <p className="mt-1 text-xs text-chalkDim/60">
-          Ajoutez un ticket via l&apos;ajout magique ou le bouton +.
+        <p className="text-sm text-inkSoft">Aucune dépense ce mois-ci.</p>
+        <p className="mt-1 text-xs text-inkSoft/60">
+          Ajoutez une transaction via l&apos;ajout magique ou le bouton +.
         </p>
       </div>
     );
@@ -33,9 +33,9 @@ export function ExpensePieChart() {
   return (
     <section
       aria-label="Répartition des dépenses"
-      className="mx-4 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10"
+      className="mx-4 rounded-2xl bg-white/60 p-4 ring-1 ring-ink/10"
     >
-      <h2 className="mb-1 text-sm font-bold uppercase tracking-wider text-chalkDim">
+      <h2 className="mb-1 text-sm font-bold uppercase tracking-wider text-inkSoft">
         Répartition
       </h2>
 
@@ -59,8 +59,9 @@ export function ExpensePieChart() {
                   <text
                     x={x}
                     y={y}
-                    fill="#F8FAFC"
+                    fill="#FFFFFF"
                     fontSize={12}
+                    fontWeight={600}
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
@@ -76,10 +77,10 @@ export function ExpensePieChart() {
             <Tooltip
               formatter={(v: number) => formatAmount(v, currency)}
               contentStyle={{
-                background: "#0B1120",
-                border: "1px solid rgba(248,250,252,0.12)",
+                background: "#FFFFFF",
+                border: "1px solid rgba(15,23,42,0.12)",
                 borderRadius: 10,
-                color: "#F8FAFC",
+                color: "#0F172A",
                 fontSize: 12
               }}
             />
@@ -96,8 +97,8 @@ export function ExpensePieChart() {
               style={{ background: d.fill }}
               aria-hidden
             />
-            <span className="truncate text-chalkDim">{d.name}</span>
-            <span className="ml-auto text-chalk">{d.pct.toFixed(1)}%</span>
+            <span className="truncate text-inkSoft">{d.name}</span>
+            <span className="ml-auto text-ink">{d.pct.toFixed(1)}%</span>
           </li>
         ))}
       </ul>

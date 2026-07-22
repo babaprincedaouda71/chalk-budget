@@ -51,8 +51,8 @@ body {
   transform: translateX(-50%);
   background: linear-gradient(
     90deg,
-    theme("colors.chalkGreen"),
-    rgba(52, 211, 153, 0.25)
+    theme("colors.greenDeep"),
+    rgba(5, 150, 105, 0.25)
   );
 }
 

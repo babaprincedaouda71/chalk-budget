@@ -18,16 +18,16 @@ export function MonthSelector() {
       <button
         onClick={() => shift(-1)}
         aria-label="Mois précédent"
-        className="rounded-full p-2 text-chalkDim transition hover:bg-chalk/10 hover:text-chalk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chalk/50"
+        className="rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
       >
         <ChevronLeft className="h-6 w-6" />
       </button>
 
       <div className="text-center">
-        <h1 className="chalk-underline text-2xl font-bold tracking-tight text-chalk">
+        <h1 className="chalk-underline text-2xl font-bold tracking-tight text-ink">
           {MONTH_NAMES[month.month]}
         </h1>
-        <p className="mt-1 text-xs tracking-widest text-chalkDim/80">
+        <p className="mt-1 text-xs tracking-widest text-inkSoft/80">
           {month.year}
           {!isCurrent && " · autre mois"}
         </p>
@@ -36,7 +36,7 @@ export function MonthSelector() {
       <button
         onClick={() => shift(1)}
         aria-label="Mois suivant"
-        className="rounded-full p-2 text-chalkDim transition hover:bg-chalk/10 hover:text-chalk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chalk/50"
+        className="rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
       >
         <ChevronRight className="h-6 w-6" />
       </button>

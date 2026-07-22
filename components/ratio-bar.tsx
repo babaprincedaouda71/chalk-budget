@@ -26,41 +26,41 @@ export function RatioBar() {
           income,
           currency
         )} de revenus`}
-        className="relative h-4 overflow-hidden rounded-full bg-black/30 shadow-inner"
+        className="relative h-4 overflow-hidden rounded-full bg-ink/10"
       >
         {!empty && greenPct > 0 && (
           <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-b from-chalkGreen to-[#10B981] transition-all duration-500"
+            className="absolute inset-y-0 left-0 bg-gradient-to-b from-greenDeep to-[#10B981] transition-all duration-500"
             style={{ width: `${greenPct}%` }}
           />
         )}
         {!empty && spentPct > 0 && (
           <div
-            className="absolute inset-y-0 right-0 bg-gradient-to-b from-brick to-brickDeep transition-all duration-500"
+            className="absolute inset-y-0 right-0 bg-gradient-to-b from-brickDeep to-[#BE123C] transition-all duration-500"
             style={{ width: `${spentPct}%` }}
           />
         )}
-        {/* jointure façon trait de craie */}
+        {/* jointure entre part restante et part dépensée */}
         {!empty && greenPct > 0 && spentPct > 0 && (
           <div
-            className="absolute inset-y-0 w-[2px] bg-chalk/70 blur-[0.5px] transition-all duration-500"
+            className="absolute inset-y-0 w-[2px] bg-white/80 transition-all duration-500"
             style={{ left: `${greenPct}%` }}
           />
         )}
       </div>
 
       <div className="mt-1.5 flex items-baseline justify-between text-sm">
-        <span className="chalk-text chalk-green">
+        <span className="text-greenDeep">
           + {formatAmount(income, currency)}
         </span>
-        <span className="chalk-text text-chalkDim">
+        <span className="text-inkSoft">
           {empty
             ? "Rien ce mois-ci"
             : overspent
               ? "Budget dépassé !"
               : `Reste ${formatAmount(income - expense, currency)}`}
         </span>
-        <span className="chalk-text chalk-red">
+        <span className="text-brickDeep">
           − {formatAmount(expense, currency)}
         </span>
       </div>

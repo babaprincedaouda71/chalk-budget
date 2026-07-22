@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#2E3532"/>
-  <rect x="48" y="48" width="416" height="416" rx="48" fill="none" stroke="#8b6238" stroke-width="28"/>
-  <text x="256" y="330" font-family="cursive" font-size="220" fill="#F2EFE6" text-anchor="middle">€</text>
-  <path d="M110 400 q80 -18 160 0 q70 14 132 -6" stroke="#9ED8A4" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.9"/>
+  <rect width="512" height="512" rx="96" fill="#0F172A"/>
+  <!-- Flux entrant : revenus (émeraude) -->
+  <path d="M170 232 L256 150 L342 232" fill="none" stroke="#34D399" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Flux sortant : dépenses (rose) -->
+  <path d="M170 280 L256 362 L342 280" fill="none" stroke="#FB7185" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
