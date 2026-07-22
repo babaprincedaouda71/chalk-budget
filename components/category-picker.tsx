@@ -37,11 +37,19 @@ export function CategoryPicker({
   const list = categories.filter((c) => c.kind === type);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && onClose()}>
+    // `modal={false}` : le formulaire parent est déjà un Dialog modal. Empiler
+    // un second Dialog modal fait entrer en conflit les deux verrous de
+    // défilement (react-remove-scroll) et laisse parfois le <body> en
+    // `pointer-events: none` après fermeture — ce qui fige le formulaire. Ce
+    // sélecteur est un calque plein écran opaque : il n'a pas besoin d'être
+    // modal, et `pointer-events-auto` garantit qu'il reste cliquable malgré le
+    // verrou posé par le Dialog parent.
+    <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && onClose()} modal={false}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Content
-          className="paper-bg fixed inset-0 z-[60] overflow-y-auto text-ink focus:outline-none"
+          className="paper-bg pointer-events-auto fixed inset-0 z-[60] overflow-y-auto text-ink focus:outline-none"
           aria-describedby={undefined}
+          onInteractOutside={(e) => e.preventDefault()}
         >
           <div className="mx-auto min-h-dvh max-w-app px-4 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
             <header className="mb-4 flex items-center gap-2">

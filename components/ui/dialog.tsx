@@ -14,14 +14,14 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px]" />
+    <DialogPrimitive.Overlay className="pointer-events-auto fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px]" />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
         // Ancré vers le haut (et non centré) : quand le clavier s'ouvre sur
         // mobile, un dialogue centré verticalement devient à moitié
         // inaccessible. Hauteur en dvh + défilement interne.
-        "paper-bg fixed left-1/2 top-[max(2.5rem,env(safe-area-inset-top))] z-50 max-h-[calc(100dvh-8rem)] w-[calc(100%-2rem)] max-w-app -translate-x-1/2 overflow-y-auto rounded-xl border border-ink/15 p-5 text-ink shadow-2xl focus:outline-none",
+        "paper-bg pointer-events-auto fixed left-1/2 top-[max(2.5rem,env(safe-area-inset-top))] z-50 max-h-[calc(100dvh-8rem)] w-[calc(100%-2rem)] max-w-app -translate-x-1/2 overflow-y-auto rounded-xl border border-ink/15 p-5 text-ink shadow-2xl focus:outline-none",
         className
       )}
       {...props}
