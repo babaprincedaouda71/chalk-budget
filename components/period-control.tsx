@@ -32,7 +32,7 @@ export function PeriodPill({
         onClick={() => setOpen(!isOpen)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="rounded-lg border border-ink/20 bg-white/60 px-5 py-1.5 font-bold text-ink transition hover:border-ink/40"
+        className="whitespace-nowrap rounded-lg border border-ink/20 bg-white/60 px-4 py-1.5 font-bold text-ink transition hover:border-ink/40"
       >
         {rangeLabel}
       </button>

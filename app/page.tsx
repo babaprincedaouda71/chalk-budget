@@ -35,7 +35,7 @@ export default function DashboardPage() {
         {/* En-tête : pilule de période centrée + navigation dessous
             (structure identique à la page Transactions). */}
         <div>
-          <div className="grid grid-cols-3 items-center px-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4">
             <span aria-hidden />
             <PeriodPill />
             <span aria-hidden />

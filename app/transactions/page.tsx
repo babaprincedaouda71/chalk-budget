@@ -333,7 +333,7 @@ export default function TransactionsPage() {
   return (
     <div className="paper-bg flex min-h-0 flex-1 flex-col text-ink">
       {/* En-tête : mode édition / période / ajout */}
-      <header className="grid grid-cols-3 items-center px-4 pt-4 pb-2">
+      <header className="grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-4 pb-2">
         <button
           onClick={() => {
             setEditMode((v) => !v);
@@ -362,7 +362,7 @@ export default function TransactionsPage() {
       </header>
 
       {/* Barre d'outils : tri / navigation / export */}
-      <div className="grid grid-cols-3 items-center border-b-2 border-ink/15 px-4 pb-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b-2 border-ink/15 px-4 pb-2">
         <div className="relative justify-self-start">
           <button
             onClick={() => setOpenMenu(openMenu === "sort" ? null : "sort")}
