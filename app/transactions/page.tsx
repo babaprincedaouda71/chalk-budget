@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import {
-  Check, ChevronDown, ChevronLeft, ChevronRight, Plus, Repeat, Search, X
+  Check, ChevronDown, ChevronLeft, ChevronRight, FileSpreadsheet, FileText,
+  Plus, Repeat, Search, X, type LucideIcon
 } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { CategoryPicker } from "@/components/category-picker";
@@ -53,7 +54,7 @@ function Menu({
       <div
         role="menu"
         className={cn(
-          "absolute top-full z-50 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-ink/20 bg-paper py-1 shadow-xl",
+          "absolute top-full z-50 mt-1 min-w-[13rem] overflow-hidden rounded-xl border border-ink/15 bg-paper py-1.5 shadow-xl shadow-ink/10 ring-1 ring-ink/5",
           align === "right" && "right-0",
           align === "left" && "left-0",
           align === "center" && "left-1/2 -translate-x-1/2"
@@ -70,10 +71,14 @@ function Menu({
 
 function MenuItem({
   label,
+  description,
+  icon: Icon,
   selected,
   onClick
 }: {
   label: string;
+  description?: string;
+  icon?: LucideIcon;
   selected?: boolean;
   onClick: () => void;
 }) {
@@ -82,12 +87,23 @@ function MenuItem({
       role="menuitem"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-ink/5",
+        "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-ink/5",
         selected && "font-bold"
       )}
     >
-      <span className="w-4">{selected && <Check className="h-4 w-4" />}</span>
-      {label}
+      {Icon ? (
+        <Icon className="h-4 w-4 shrink-0 text-inkSoft" strokeWidth={1.75} />
+      ) : (
+        <span className="w-4 shrink-0">{selected && <Check className="h-4 w-4" />}</span>
+      )}
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+        {description && (
+          <span className="mt-0.5 block truncate text-xs font-normal text-inkSoft">
+            {description}
+          </span>
+        )}
+      </span>
     </button>
   );
 }
@@ -487,28 +503,37 @@ export default function TransactionsPage() {
             align="right"
           >
             <MenuItem
-              label="PDF — période affichée"
+              icon={FileText}
+              label="PDF"
+              description="Période affichée"
               onClick={() => {
                 setOpenMenu(null);
                 void exportPdf(periodRows(), rangeLabel);
               }}
             />
             <MenuItem
-              label="PDF — toutes les transactions"
+              icon={FileText}
+              label="PDF"
+              description="Toutes les transactions"
               onClick={() => {
                 setOpenMenu(null);
                 void exportPdf(allRows(), "Toutes les transactions");
               }}
             />
+            <div className="my-1 h-px bg-ink/10" aria-hidden />
             <MenuItem
-              label="CSV — période affichée"
+              icon={FileSpreadsheet}
+              label="CSV"
+              description="Période affichée"
               onClick={() => {
                 setOpenMenu(null);
                 exportCsv(periodRows(), rangeLabel);
               }}
             />
             <MenuItem
-              label="CSV — toutes les transactions"
+              icon={FileSpreadsheet}
+              label="CSV"
+              description="Toutes les transactions"
               onClick={() => {
                 setOpenMenu(null);
                 exportCsv(allRows(), "Toutes les transactions");
