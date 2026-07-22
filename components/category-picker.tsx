@@ -1,7 +1,7 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { CategoryIcon } from "./category-icon";
 import { useBudget } from "@/lib/store";
 import { TxType } from "@/lib/types";
@@ -16,12 +16,50 @@ interface ListProps {
   allowAll?: boolean;
 }
 
+/** Tuile de la grille : icône au-dessus du nom, état sélectionné marqué. */
+function CategoryTile({
+  icon,
+  label,
+  active,
+  onClick
+}: {
+  icon: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition",
+        active
+          ? "border-ink/60 bg-ink/5 text-ink"
+          : "border-ink/15 bg-white/40 text-inkSoft hover:border-ink/40 hover:text-ink"
+      )}
+    >
+      <CategoryIcon name={icon} className="h-6 w-6" />
+      <span
+        className={cn(
+          "w-full truncate text-center text-xs",
+          active ? "font-bold" : "font-medium"
+        )}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 /**
- * Liste de sélection de catégorie, sans chrome de dialogue. À réutiliser
- * DANS un dialogue existant (ex. formulaire de transaction) : ne jamais
- * empiler un second Dialog modal par-dessus un premier — le verrou de
- * défilement du parent (react-remove-scroll) bloque le scroll de tout
- * contenu portalé hors de son sous-arbre.
+ * Grille de sélection de catégorie (3 colonnes, icône + nom) : presque toutes
+ * les catégories visibles d'un coup, sélection en un tap. Sans chrome de
+ * dialogue — à réutiliser DANS un dialogue existant (ex. formulaire de
+ * transaction) : ne jamais empiler un second Dialog modal par-dessus un
+ * premier — le verrou de défilement du parent (react-remove-scroll) bloque le
+ * scroll de tout contenu portalé hors de son sous-arbre.
  */
 export function CategoryList({ type, selectedId, onSelect, allowAll = false }: ListProps) {
   const { categories } = useBudget();
@@ -29,45 +67,25 @@ export function CategoryList({ type, selectedId, onSelect, allowAll = false }: L
 
   return (
     <>
-      <ul className="divide-y divide-ink/10 rounded-xl border border-ink/15 bg-white/40">
+      <div aria-label="Catégories" className="grid grid-cols-3 gap-2">
         {allowAll && (
-          <li>
-            <button
-              type="button"
-              onClick={() => onSelect(null)}
-              aria-pressed={selectedId === null}
-              className={cn(
-                "flex w-full items-center gap-3 px-3 py-3 text-left transition",
-                selectedId === null ? "bg-ink/5 font-bold" : "hover:bg-ink/5"
-              )}
-            >
-              <CategoryIcon name="CircleDashed" className="h-5 w-5 shrink-0 text-inkSoft" />
-              <span className="flex-1">Toutes les catégories</span>
-              {selectedId === null && <Check className="h-4 w-4 shrink-0" />}
-            </button>
-          </li>
+          <CategoryTile
+            icon="CircleDashed"
+            label="Toutes"
+            active={selectedId === null}
+            onClick={() => onSelect(null)}
+          />
         )}
-        {list.map((c) => {
-          const active = c.id === selectedId;
-          return (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(c.id)}
-                aria-pressed={active}
-                className={cn(
-                  "flex w-full items-center gap-3 px-3 py-3 text-left transition",
-                  active ? "bg-ink/5 font-bold" : "hover:bg-ink/5"
-                )}
-              >
-                <CategoryIcon name={c.icon} className="h-5 w-5 shrink-0 text-inkSoft" />
-                <span className="flex-1">{c.name}</span>
-                {active && <Check className="h-4 w-4 shrink-0" />}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+        {list.map((c) => (
+          <CategoryTile
+            key={c.id}
+            icon={c.icon}
+            label={c.name}
+            active={c.id === selectedId}
+            onClick={() => onSelect(c.id)}
+          />
+        ))}
+      </div>
 
       {list.length === 0 && (
         <p className="mt-4 text-sm text-inkSoft">
