@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { DialogTitle } from "@/components/ui/dialog";
 import { CategoryIcon } from "./category-icon";
@@ -53,6 +53,8 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
     initial?.categoryId ?? typeCategories[0]?.id ?? ""
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Recherche dans la grille de catégories (réinitialisée à chaque ouverture).
+  const [catQuery, setCatQuery] = useState("");
   const selectedCategory = typeCategories.find((c) => c.id === categoryId);
 
   const switchType = (income: boolean) => {
@@ -130,14 +132,43 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
           </button>
           <DialogTitle className="mb-0">Choisir une catégorie</DialogTitle>
         </header>
-        <CategoryList
-          type={type}
-          selectedId={categoryId}
-          onSelect={(id) => {
-            if (id) setCategoryId(id);
-            setPickerOpen(false);
-          }}
-        />
+
+        {/* Recherche : reste visible, seule la grille défile en dessous. */}
+        <div className="relative mb-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-inkSoft" />
+          <input
+            type="search"
+            value={catQuery}
+            onChange={(e) => setCatQuery(e.target.value)}
+            placeholder="Rechercher une catégorie…"
+            aria-label="Rechercher une catégorie"
+            className="w-full rounded-lg border border-ink/20 bg-white/60 py-2 pl-9 pr-8 text-sm text-ink placeholder:text-inkSoft/70 focus:border-ink/50 focus:outline-none"
+          />
+          {catQuery && (
+            <button
+              type="button"
+              onClick={() => setCatQuery("")}
+              aria-label="Effacer la recherche"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-inkSoft hover:bg-ink/10"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Zone défilante : hauteur plafonnée pour que l'en-tête, la
+            recherche et le bouton Fermer du dialogue restent visibles. */}
+        <div className="-mx-1 max-h-[min(50dvh,22rem)] overflow-y-auto px-1 pb-1">
+          <CategoryList
+            type={type}
+            selectedId={categoryId}
+            query={catQuery}
+            onSelect={(id) => {
+              if (id) setCategoryId(id);
+              setPickerOpen(false);
+            }}
+          />
+        </div>
       </div>
     );
   }
@@ -192,7 +223,10 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
         <span className="mb-1 block text-sm text-inkSoft">Catégorie</span>
         <button
           type="button"
-          onClick={() => setPickerOpen(true)}
+          onClick={() => {
+            setCatQuery("");
+            setPickerOpen(true);
+          }}
           className="flex w-full items-center gap-3 rounded-lg border border-ink/20 bg-white/60 px-3 py-2.5 text-left transition hover:border-ink/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40"
         >
           {selectedCategory ? (

@@ -20,13 +20,14 @@ const DialogContent = React.forwardRef<
       className={cn(
         // Ancré vers le haut (et non centré) : quand le clavier s'ouvre sur
         // mobile, un dialogue centré verticalement devient à moitié
-        // inaccessible. Hauteur en dvh + défilement interne.
-        "paper-bg pointer-events-auto fixed left-1/2 top-[max(2.5rem,env(safe-area-inset-top))] z-50 max-h-[calc(100dvh-8rem)] w-[calc(100%-2rem)] max-w-app -translate-x-1/2 overflow-y-auto rounded-xl border border-ink/15 p-5 text-ink shadow-2xl focus:outline-none",
+        // inaccessible. Hauteur en dvh ; le défilement se fait dans le
+        // conteneur interne, si bien que le bouton Fermer reste épinglé.
+        "paper-bg pointer-events-auto fixed left-1/2 top-[max(2.5rem,env(safe-area-inset-top))] z-50 flex max-h-[calc(100dvh-8rem)] w-[calc(100%-2rem)] max-w-app -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-ink/15 text-ink shadow-2xl focus:outline-none",
         className
       )}
       {...props}
     >
-      {children}
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
       <DialogPrimitive.Close className="absolute right-3 top-3 rounded-full p-1 text-inkSoft hover:bg-ink/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40">
         <X className="h-4 w-4" />
         <span className="sr-only">Fermer</span>

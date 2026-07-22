@@ -14,7 +14,13 @@ interface ListProps {
   onSelect: (id: string | null) => void;
   /** Ajoute une entrée « Toutes les catégories » en tête (mode filtre) */
   allowAll?: boolean;
+  /** Filtre par nom (insensible à la casse et aux accents). */
+  query?: string;
 }
+
+/** Normalisation pour la recherche : minuscules, accents retirés. */
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 /** Tuile de la grille : icône au-dessus du nom, état sélectionné marqué. */
 function CategoryTile({
@@ -61,14 +67,22 @@ function CategoryTile({
  * premier — le verrou de défilement du parent (react-remove-scroll) bloque le
  * scroll de tout contenu portalé hors de son sous-arbre.
  */
-export function CategoryList({ type, selectedId, onSelect, allowAll = false }: ListProps) {
+export function CategoryList({
+  type,
+  selectedId,
+  onSelect,
+  allowAll = false,
+  query = ""
+}: ListProps) {
   const { categories } = useBudget();
-  const list = categories.filter((c) => c.kind === type);
+  const q = norm(query.trim());
+  const ofType = categories.filter((c) => c.kind === type);
+  const list = q ? ofType.filter((c) => norm(c.name).includes(q)) : ofType;
 
   return (
     <>
       <div aria-label="Catégories" className="grid grid-cols-3 gap-2">
-        {allowAll && (
+        {allowAll && !q && (
           <CategoryTile
             icon="CircleDashed"
             label="Toutes"
@@ -89,8 +103,9 @@ export function CategoryList({ type, selectedId, onSelect, allowAll = false }: L
 
       {list.length === 0 && (
         <p className="mt-4 text-sm text-inkSoft">
-          Aucune catégorie de ce type — créez-en une dans l&apos;onglet
-          Catégories.
+          {q
+            ? "Aucune catégorie ne correspond à la recherche."
+            : "Aucune catégorie de ce type — créez-en une dans l'onglet Catégories."}
         </p>
       )}
     </>
