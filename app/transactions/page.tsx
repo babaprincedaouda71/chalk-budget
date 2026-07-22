@@ -480,12 +480,20 @@ export default function TransactionsPage() {
           </Menu>
         </div>
 
-        <div className="flex items-center justify-self-center gap-8">
-          <button onClick={() => shift(-1)} aria-label="Période précédente" className="text-inkSoft hover:text-ink">
-            <ChevronLeft className="h-5 w-5" />
+        <div className="flex items-center justify-self-center gap-4">
+          <button
+            onClick={() => shift(-1)}
+            aria-label="Période précédente"
+            className="rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
+          >
+            <ChevronLeft className="h-6 w-6" />
           </button>
-          <button onClick={() => shift(1)} aria-label="Période suivante" className="text-inkSoft hover:text-ink">
-            <ChevronRight className="h-5 w-5" />
+          <button
+            onClick={() => shift(1)}
+            aria-label="Période suivante"
+            className="rounded-full p-2 text-inkSoft transition hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
+          >
+            <ChevronRight className="h-6 w-6" />
           </button>
         </div>
 
