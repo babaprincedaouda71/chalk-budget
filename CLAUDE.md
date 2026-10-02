@@ -24,7 +24,7 @@ There are no tests and no lint script configured.
 
 ## What this app is
 
-"Ardoise — Budget": a French-language, mobile-first budgeting PWA with a skeuomorphic design — the dashboard is a chalk-on-blackboard, the transactions list is a lined paper notebook. Next.js 14 App Router + TypeScript + Tailwind. All UI copy, comments, and category data are in French (see règles projet); keep code comments in French to match.
+"Ardoise — Budget": a French-language, mobile-first budgeting PWA with a clean, modern light design (all four pages on the light `paper` background — the former chalkboard/notebook skeuomorphic look was dropped, see règles projet). Next.js 14 App Router + TypeScript + Tailwind. All UI copy, comments, and category data are in French (see règles projet); keep code comments in French to match.
 
 ## Architecture
 
@@ -53,7 +53,7 @@ Parser behavior (`lib/parser.ts`):
 `Transaction` (type income/expense, ISO `yyyy-mm-dd` date, `categoryId`, optional `recurring`), `Category` (id, name, lucide icon name as a string, kind, keywords for the parser). Defaults live in `lib/categories.ts`; `FALLBACK_EXPENSE_ID` ("divers") is used when no keyword matches. Category icons are referenced by lucide-react icon **name strings** resolved in `components/category-icon.tsx`.
 
 ### Pages & layout
-Four tab pages under `app/`: `/` (blackboard dashboard: totals, ratio bar, pie chart, smart input), `/transactions` (paper notebook list), `/categories`, `/settings`. `app/layout.tsx` wraps everything in `BudgetProvider` plus a centered `max-w-app` (28rem) mobile frame with `components/tab-bar.tsx` at the bottom — pages should assume mobile widths.
+Four tab pages under `app/`: `/` (dashboard: totals, ratio bar, pie chart, smart input), `/transactions` (transaction list), `/categories`, `/settings`. `app/layout.tsx` wraps everything in `BudgetProvider` plus a centered `max-w-app` (28rem) mobile frame with `components/tab-bar.tsx` at the bottom — pages should assume mobile widths.
 
 ### Theming
-The modern look lives in `tailwind.config.ts` (legacy-named palette tokens remapped: `board`/`boardEdge` dark slate, `chalk`/`chalkDim` light text on dark, `chalkGreen` emerald accent, `brick`/`brickDeep` rose, `paper`/`ink`/`inkSoft` for light pages) and `app/globals.css` (`.board-bg` dark gradient surface, `.paper-bg` flat light; `.chalk-text`/`.chalk-green`/`.chalk-red` kept as thin compat shims; `.notebook-lines`/`.notebook-margin`/`.wood-frame` neutralized). Single font: Inter via `--font-body` (both `font-chalk` and `font-body` map to it). Reuse these classes/tokens rather than inventing new colors; dark-surface cards use `rounded-2xl bg-white/5 ring-1 ring-white/10`. `components/ui/` contains shadcn-style Radix wrappers (dialog, switch).
+The modern look lives in `tailwind.config.ts` (legacy-named palette tokens remapped: `board`/`boardEdge` dark slate, `chalk`/`chalkDim` light text on dark, `chalkGreen` emerald accent, `brick`/`brickDeep` rose, `paper`/`ink`/`inkSoft` for light pages) and `app/globals.css` (`.board-bg` dark gradient surface, `.paper-bg` flat light; `.chalk-text`/`.chalk-green`/`.chalk-red` kept as thin compat shims; `.notebook-lines`/`.notebook-margin`/`.wood-frame` neutralized). Single font: Inter via `--font-body` (both `font-chalk` and `font-body` map to it). Pages use the light tokens (`paper`, `ink`, `inkSoft`, `greenDeep` for income, `brickDeep` for expenses) with cards `bg-white/50-60 ring-1 ring-ink/10`; the dark-surface tokens and `.board-bg` remain defined but are unused. Reuse these classes/tokens rather than inventing new colors. `components/ui/` contains shadcn-style Radix wrappers (dialog, switch).
