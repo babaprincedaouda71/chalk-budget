@@ -1,5 +1,6 @@
 "use client";
 
+import { DisplayDiagnostic } from "@/components/display-diagnostic";
 import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useBudget } from "@/lib/store";
@@ -283,6 +284,8 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
+
+      <DisplayDiagnostic />
       </div>
 
       {/* Aperçu d'import : confirmation avant écriture */}
