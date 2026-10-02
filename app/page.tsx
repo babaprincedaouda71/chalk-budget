@@ -7,6 +7,7 @@ import { RatioBar } from "@/components/ratio-bar";
 import { SmartInput } from "@/components/smart-input";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { BudgetCard } from "@/components/budget-card";
+import { BackupReminder } from "@/components/backup-reminder";
 import { CategoryIcon } from "@/components/category-icon";
 import { TransactionForm } from "@/components/transaction-form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -49,6 +50,8 @@ export default function DashboardPage() {
 
       {/* Partie défilante : totaux par catégorie + camembert */}
       <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pb-28">
+      <BackupReminder />
+
       {/* Totaux par catégorie (carte) */}
       <section
         aria-label="Totaux par catégorie"

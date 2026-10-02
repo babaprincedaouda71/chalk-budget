@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { Category, RecurringScope, Transaction } from "./types";
 import { BudgetStatus, budgetStatuses, monthSpendingByCategory } from "./budget";
+import { BACKUP_APP, BACKUP_FORMAT, BackupFile } from "./backup";
 import {
   CATALOG_VERSION,
   DEFAULT_CATEGORIES,
@@ -93,6 +94,10 @@ interface BudgetContextValue extends BudgetState {
   deleteCategory: (id: string) => void;
   /** Import en bloc : nouvelles catégories + transactions (ids générés ici). */
   importBundle: (cats: Category[], txs: Omit<Transaction, "id">[]) => void;
+  /** Sauvegarde complète (JSON) : transactions, catégories, devise. */
+  exportBackup: () => string;
+  /** Fusionne une sauvegarde complète avec l'état courant (sans doublon). */
+  restoreBackup: (data: BackupFile) => void;
   setCurrency: (c: string) => void;
   resetAll: () => void;
   periodTransactions: Transaction[];
@@ -674,6 +679,28 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const exportBackup = useCallback(
+    () =>
+      JSON.stringify({
+        app: BACKUP_APP,
+        format: BACKUP_FORMAT,
+        exportedAt: new Date().toISOString(),
+        ...buildPayload(stateRef.current)
+      }),
+    [buildPayload]
+  );
+
+  // Même fusion par entité que la synchronisation : rien n'est écrasé, la
+  // version la plus récente de chaque transaction/catégorie l'emporte. Pas
+  // d'applyingRemote : si la synchro est active, le résultat est poussé.
+  const restoreBackup = useCallback(
+    (data: BackupFile) => {
+      const incoming = normalizeIncoming(data);
+      setState((prev) => asState(mergeStates(prev, incoming)));
+    },
+    [normalizeIncoming]
+  );
+
   const setCurrency = useCallback(
     (currency: string) =>
       setState((s) => ({ ...s, currency, currencyUpdatedAt: Date.now() })),
@@ -768,6 +795,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     updateCategory,
     deleteCategory,
     importBundle,
+    exportBackup,
+    restoreBackup,
     setCurrency,
     resetAll,
     periodTransactions,

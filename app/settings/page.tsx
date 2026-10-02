@@ -1,9 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useBudget } from "@/lib/store";
 import { ImportResult, parseImportFile } from "@/lib/importer";
+import {
+  BackupFile,
+  formatLastBackup,
+  isBackupFile,
+  lastBackupAt,
+  saveBackupFile
+} from "@/lib/backup";
 import { cn } from "@/lib/utils";
 
 const CURRENCIES = ["€", "$", "MAD", "FCFA", "£", "CHF", "CAD"];
@@ -22,6 +29,8 @@ export default function SettingsPage() {
     transactions,
     categories,
     importBundle,
+    exportBackup,
+    restoreBackup,
     resetAll,
     syncCode,
     syncStatus,
@@ -37,6 +46,8 @@ export default function SettingsPage() {
   const [preview, setPreview] = useState<(ImportResult & { duplicates: number }) | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importDone, setImportDone] = useState<string | null>(null);
+  // Sauvegarde complète détectée à l'import : confirmation avant fusion.
+  const [restorePreview, setRestorePreview] = useState<BackupFile | null>(null);
 
   const txKey = (t: { date: string; amount: number; type: string; note?: string }) =>
     `${t.date}|${t.amount}|${t.type}|${t.note ?? ""}`;
@@ -48,7 +59,16 @@ export default function SettingsPage() {
     setImportError(null);
     setImportDone(null);
     try {
-      const result = parseImportFile(await file.text(), categories);
+      const text = await file.text();
+      // Fichier de sauvegarde complète : restauration (fusion), pas import.
+      if (/^\s*\{/.test(text)) {
+        const data: unknown = JSON.parse(text);
+        if (isBackupFile(data)) {
+          setRestorePreview(data);
+          return;
+        }
+      }
+      const result = parseImportFile(text, categories);
       const existing = new Set(transactions.map(txKey));
       const fresh = result.transactions.filter((t) => !existing.has(txKey(t)));
       setPreview({
@@ -89,17 +109,25 @@ export default function SettingsPage() {
     }
   };
 
-  const exportJson = () => {
-    const blob = new Blob(
-      [JSON.stringify({ exportedAt: new Date().toISOString(), transactions }, null, 2)],
-      { type: "application/json" }
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "ardoise-budget-export.json";
-    a.click();
-    URL.revokeObjectURL(url);
+  // Sauvegarde complète → feuille de partage (« Enregistrer dans Fichiers »).
+  const [lastBackup, setLastBackup] = useState<number | null>(null);
+  useEffect(() => setLastBackup(lastBackupAt()), []);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const backup = async () => {
+    setBackupError(null);
+    try {
+      if (await saveBackupFile(exportBackup())) setLastBackup(lastBackupAt());
+    } catch {
+      setBackupError("La sauvegarde n'a pas pu être enregistrée. Réessayez.");
+    }
+  };
+
+  const confirmRestore = () => {
+    if (!restorePreview) return;
+    restoreBackup(restorePreview);
+    const n = restorePreview.transactions.filter((t) => !t.deleted).length;
+    setImportDone(`Sauvegarde restaurée : ${n} transaction${n > 1 ? "s" : ""}.`);
+    setRestorePreview(null);
   };
 
   return (
@@ -223,11 +251,17 @@ export default function SettingsPage() {
         </p>
         <div className="flex flex-col gap-2">
           <button
-            onClick={exportJson}
-            className="rounded-lg border border-ink/25 bg-white/40 py-2.5 font-medium transition hover:border-ink/60"
+            onClick={backup}
+            className="rounded-lg bg-ink py-2.5 font-bold text-paper transition hover:bg-ink/85"
           >
-            Exporter en JSON
+            Sauvegarder dans Fichiers
           </button>
+          <p className="text-xs text-inkSoft">
+            Dernière sauvegarde : {formatLastBackup(lastBackup)}. Le fichier contient
+            tout (transactions, catégories, mots-clés, budgets, devise) : enregistrez-le
+            dans iCloud Drive pour le retrouver même si vous supprimez l&apos;app.
+          </p>
+          {backupError && <p className="text-sm text-brickDeep">{backupError}</p>}
 
           <input
             ref={fileRef}
@@ -240,14 +274,14 @@ export default function SettingsPage() {
             onClick={() => fileRef.current?.click()}
             className="rounded-lg border border-ink/25 bg-white/40 py-2.5 font-medium transition hover:border-ink/60"
           >
-            Importer (CSV ou JSON)…
+            Restaurer ou importer…
           </button>
           {importError && <p className="text-sm text-brickDeep">{importError}</p>}
           {importDone && <p className="text-sm font-medium text-greenDeep">{importDone}</p>}
           <p className="text-xs text-inkSoft">
-            Import : export CSV d&apos;une autre app (Spending Tracker, banque…)
-            ou sauvegarde JSON de cette app. Les catégories sont reconnues par
-            leur nom ; les manquantes sont créées et les doublons ignorés.
+            Choisissez une sauvegarde de cette app pour tout restaurer, ou un
+            export CSV d&apos;une autre app (Spending Tracker, banque…). Les
+            doublons sont ignorés.
           </p>
           {!confirmReset ? (
             <button
@@ -284,6 +318,48 @@ export default function SettingsPage() {
         </div>
       </section>
       </div>
+
+      {/* Restauration d'une sauvegarde complète : confirmation */}
+      <Dialog open={!!restorePreview} onOpenChange={(o) => !o && setRestorePreview(null)}>
+        <DialogContent>
+          <DialogTitle>Restaurer la sauvegarde</DialogTitle>
+          {restorePreview && (
+            <div className="space-y-3 text-sm">
+              <p>
+                Sauvegarde du{" "}
+                <span className="font-medium">
+                  {new Date(restorePreview.exportedAt).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                  })}
+                </span>{" "}
+                : {restorePreview.transactions.filter((t) => !t.deleted).length} transactions,{" "}
+                {restorePreview.categories.filter((c) => !c.deleted).length} catégories.
+              </p>
+              <p className="text-inkSoft">
+                Elle est fusionnée avec vos données actuelles : rien n&apos;est
+                dupliqué, et pour chaque élément la version la plus récente est
+                conservée.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setRestorePreview(null)}
+                  className="flex-1 rounded-lg border border-ink/25 py-2.5"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmRestore}
+                  className="flex-1 rounded-lg bg-ink py-2.5 font-bold text-paper"
+                >
+                  Restaurer
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Aperçu d'import : confirmation avant écriture */}
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
