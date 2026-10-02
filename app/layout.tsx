@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { BudgetProvider } from "@/lib/store";
 import { TabBar } from "@/components/tab-bar";
 import { ServiceWorker } from "@/components/service-worker";
+import { ViewportFix } from "@/components/viewport-fix";
 
 const body = Inter({
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default function RootLayout({
           </div>
           <Analytics />
           <ServiceWorker />
+          <ViewportFix />
         </BudgetProvider>
       </body>
     </html>

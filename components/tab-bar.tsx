@@ -18,7 +18,7 @@ export function TabBar() {
   return (
     <nav
       aria-label="Navigation principale"
-      className="fixed bottom-0 left-1/2 z-40 w-full max-w-app -translate-x-1/2 border-t border-black/40 bg-boardEdge/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className="fixed bottom-0 left-1/2 z-40 w-full max-w-app -translate-x-1/2 border-t border-black/40 bg-boardEdge pb-[var(--tabbar-pb,env(safe-area-inset-bottom))]"
     >
       <ul className="grid grid-cols-4">
         {TABS.map(({ href, label, icon: Icon }) => {
