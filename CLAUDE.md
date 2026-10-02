@@ -8,9 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # dev server → http://localhost:3000
 npm run build    # production build (also serves as the type check — no separate lint/test setup)
 npm run start    # serve the production build
+npm test         # Vitest — unit tests of the pure logic in lib/ (*.test.ts next to the code)
 ```
 
-There are no tests and no lint script configured.
+No lint script is configured. Tests cover the pure modules only (no DOM/React): `lib/parser.test.ts` (ajout magique), `lib/merge.test.ts` (sync merge), `lib/occurrences.test.ts` (recurring occurrences, budgets, 12-month evolution). Run a single file with `npx vitest run lib/parser.test.ts`. Parser tests use their own frozen category fixture, not `DEFAULT_CATEGORIES`.
 
 ## Règles projet (à respecter impérativement)
 
@@ -19,7 +20,7 @@ There are no tests and no lint script configured.
 - **Design moderne (refonte du 19/07/2026 ; unifié en clair le 22/07/2026 à la demande de l'utilisateur — le skeuomorphisme est abandonné)** : **les 4 pages sont désormais sur fond clair épuré** (`paper` #F5F7FA, texte `ink`, cartes `bg-white/50-60 ring-1 ring-ink/10`). Sur fond clair, revenus = `greenDeep` #059669, dépenses = `brickDeep` #E11D48, texte secondaire = `inkSoft`. Les jetons « sur fond sombre » (`board`, `chalk`, `chalkDim`, `chalkGreen`, `brick`) et la surface `.board-bg` restent définis mais **ne sont plus utilisés par les pages** (le dashboard n'est plus sombre) — ne pas réintroduire le fond sombre du tableau de bord. Police unique Inter. Les noms de jetons historiques sont conservés ; les classes `.notebook-lines`, `.notebook-margin`, `.wood-frame` sont neutralisées dans `globals.css`. Ne pas réintroduire l'ancien style craie/carnet.
 - **UI 100 % en français** : labels, messages d'erreur, états vides.
 - **Contrainte layout** : vue mobile `max-w-md` centrée, Tab Bar fixe en bas.
-- **Après toute modification**, vérifier que `npm run build` passe.
+- **Après toute modification**, vérifier que `npm run build` passe, et `npm test` si `lib/` a changé.
 - **Ne jamais commiter `.env.local`** (contient les secrets Upstash) ; le modèle à copier est `.env.local.example`.
 
 ## What this app is
