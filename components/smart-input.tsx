@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { formatAmount, useBudget } from "@/lib/store";
-import { budgetLevel, monthSpendingByCategory } from "@/lib/budget";
+import { budgetAlertText, budgetAlertsFor } from "@/lib/budget";
 import { leftoverWords, parseLocally } from "@/lib/parser";
 import { ParsedItem } from "@/lib/types";
 import { toISODate } from "@/lib/utils";
@@ -46,31 +46,13 @@ export function SmartInput() {
       return;
     }
 
-    // Alertes budget : comparées sur le mois courant, avant/après l'ajout ;
-    // on ne prévient que si l'ajout change le niveau (ok → alerte → dépassé).
-    const spending = monthSpendingByCategory(transactions, new Date());
-    const added = new Map<string, number>();
-    for (const i of items) {
-      if (i.type === "expense") added.set(i.categoryId, (added.get(i.categoryId) ?? 0) + i.amount);
-    }
-    const budgetAlerts: { text: string; over: boolean }[] = [];
-    for (const [id, amount] of added) {
-      const cat = categories.find((c) => c.id === id);
-      if (!cat?.budget) continue;
-      const before = spending.get(id) ?? 0;
-      const after = before + amount;
-      const level = budgetLevel(after, cat.budget);
-      if (level === "ok" || level === budgetLevel(before, cat.budget)) continue;
-      const amounts = `${formatAmount(after, currency)} / ${formatAmount(cat.budget, currency)}`;
-      budgetAlerts.push(
-        level === "over"
-          ? { text: `Budget « ${cat.name} » dépassé : ${amounts}`, over: true }
-          : {
-              text: `Budget « ${cat.name} » à ${Math.round((after / cat.budget) * 100)} % : ${amounts}`,
-              over: false
-            }
-      );
-    }
+    // Alertes budget du mois courant (les ajouts magiques sont datés du jour).
+    const budgetAlerts = budgetAlertsFor(transactions, categories, items, new Date()).map(
+      (a) => ({
+        text: budgetAlertText(a, (n) => formatAmount(n, currency)),
+        over: a.level === "over"
+      })
+    );
 
     const today = toISODate();
     addTransactions(

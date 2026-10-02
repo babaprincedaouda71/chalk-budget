@@ -87,3 +87,49 @@ export function parseBudgetInput(raw: string): number | undefined | null {
   const n = Number(cleaned);
   return n > 0 ? round2(n) : null;
 }
+
+export interface BudgetAlert {
+  category: Category;
+  /** Dépenses du mois après l'ajout. */
+  spent: number;
+  budget: number;
+  level: Exclude<BudgetLevel, "ok">;
+}
+
+/**
+ * Budgets que l'ajout de `added` fait changer de niveau (ok → alerte →
+ * dépassé) sur le mois contenant `month`. Rien n'est signalé si le niveau
+ * était déjà atteint avant l'ajout : on prévient au franchissement du seuil.
+ */
+export function budgetAlertsFor(
+  transactions: Transaction[],
+  categories: Category[],
+  added: Pick<Transaction, "type" | "amount" | "categoryId">[],
+  month: Date
+): BudgetAlert[] {
+  const spending = monthSpendingByCategory(transactions, month);
+  const sums = new Map<string, number>();
+  for (const a of added) {
+    if (a.type === "expense") sums.set(a.categoryId, (sums.get(a.categoryId) ?? 0) + a.amount);
+  }
+  const alerts: BudgetAlert[] = [];
+  for (const [id, amount] of sums) {
+    const category = categories.find((c) => c.id === id);
+    const budget = category?.budget;
+    if (!category || !budget) continue;
+    const before = spending.get(id) ?? 0;
+    const spent = round2(before + amount);
+    const level = budgetLevel(spent, budget);
+    if (level === "ok" || level === budgetLevel(before, budget)) continue;
+    alerts.push({ category, spent, budget, level });
+  }
+  return alerts;
+}
+
+/** Texte d'une alerte, ex. « Budget « Transport » à 85 % : 85 MAD / 100 MAD ». */
+export function budgetAlertText(a: BudgetAlert, fmt: (n: number) => string): string {
+  const amounts = `${fmt(a.spent)} / ${fmt(a.budget)}`;
+  return a.level === "over"
+    ? `Budget « ${a.category.name} » dépassé : ${amounts}`
+    : `Budget « ${a.category.name} » à ${Math.round((a.spent / a.budget) * 100)} % : ${amounts}`;
+}

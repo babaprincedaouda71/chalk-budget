@@ -15,6 +15,18 @@ body {
   @apply bg-boardEdge font-body antialiased;
 }
 
+/* iOS (Safari et web app de l'écran d'accueil) zoome automatiquement sur
+   tout champ dont le texte fait moins de 16px quand on le touche. Sur écran
+   tactile, on impose 16px aux champs : plus de zoom, et le pincer-pour-
+   zoomer reste disponible (pas de maximum-scale). */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* ---------- Surface sombre du tableau de bord ---------- */
 .board-bg {
   background-color: theme("colors.board");

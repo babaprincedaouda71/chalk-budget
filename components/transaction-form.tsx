@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronRight, Search, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { DialogTitle } from "@/components/ui/dialog";
 import { CategoryIcon } from "./category-icon";
 import { CategoryList } from "./category-picker";
 import { RecurringScopeDialog } from "./recurring-scope-dialog";
 import { SegmentedControl } from "./segmented-control";
-import { useBudget } from "@/lib/store";
+import { formatAmount, useBudget } from "@/lib/store";
+import { BudgetAlert, budgetAlertText, budgetAlertsFor } from "@/lib/budget";
+import { periodLabel } from "@/lib/period";
 import { RecurringScope, Transaction, TxType } from "@/lib/types";
 import { cn, toISODate } from "@/lib/utils";
 
@@ -27,6 +29,7 @@ interface Props {
 export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
   const {
     categories,
+    transactions,
     currency,
     addTransactions,
     updateTransaction,
@@ -44,6 +47,8 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
   const [recurring, setRecurring] = useState(initial?.recurring ?? false);
   // Dialogue de portée (récurrentes) : "save" ou "delete" en attente.
   const [scopePrompt, setScopePrompt] = useState<"save" | "delete" | null>(null);
+  // Alertes budget après un ajout : le dialogue reste ouvert pour les afficher.
+  const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlert[] | null>(null);
 
   const typeCategories = useMemo(
     () => categories.filter((c) => c.kind === type),
@@ -85,7 +90,19 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
       }
       updateTransaction({ ...buildTx(), id: initial.id });
     } else {
-      addTransactions([buildTx()]);
+      const tx = buildTx();
+      // Calculées avant l'ajout (sur le mois de la date choisie).
+      const alerts = budgetAlertsFor(
+        transactions,
+        categories,
+        [tx],
+        new Date(tx.date + "T00:00:00")
+      );
+      addTransactions([tx]);
+      if (alerts.length > 0) {
+        setBudgetAlerts(alerts);
+        return;
+      }
     }
     onDone();
   };
@@ -118,6 +135,43 @@ export function TransactionForm({ initial, occurrenceDate, onDone }: Props) {
   // Ne pas rouvrir un second Dialog modal par-dessus celui du formulaire :
   // le verrou de défilement du dialogue parent bloque le scroll de tout
   // contenu portalé hors de son sous-arbre.
+  // Écran d'alerte budget, affiché après un ajout qui franchit un seuil.
+  if (budgetAlerts) {
+    const otherMonth = date.slice(0, 7) !== toISODate().slice(0, 7);
+    const over = budgetAlerts.some((a) => a.level === "over");
+    return (
+      <div>
+        <DialogTitle>Transaction ajoutée</DialogTitle>
+        <div
+          role="alert"
+          className={cn(
+            "mb-4 space-y-1.5 rounded-xl p-3 text-sm font-medium ring-1",
+            over
+              ? "bg-brickDeep/5 text-brickDeep ring-brickDeep/20"
+              : "bg-amberDeep/5 text-amberDeep ring-amberDeep/20"
+          )}
+        >
+          {budgetAlerts.map((a) => (
+            <p key={a.category.id} className="flex gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                {budgetAlertText(a, (n) => formatAmount(n, currency))}
+                {otherMonth && ` (${periodLabel("month", new Date(date + "T00:00:00"))})`}
+              </span>
+            </p>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onDone}
+          className="w-full rounded-lg bg-ink py-2.5 font-bold text-paper transition hover:bg-ink/85"
+        >
+          OK
+        </button>
+      </div>
+    );
+  }
+
   if (pickerOpen) {
     return (
       <div>
