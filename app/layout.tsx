@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { BudgetProvider } from "@/lib/store";
 import { TabBar } from "@/components/tab-bar";
+import { ServiceWorker } from "@/components/service-worker";
 
 const body = Inter({
   subsets: ["latin"],
@@ -17,12 +18,20 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Ardoise",
-    statusBarStyle: "black-translucent"
+    // Barre d'état iOS à texte sombre : l'app est sur fond clair.
+    statusBarStyle: "default"
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" }
+    ],
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180" }
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B1120",
+  themeColor: "#F5F7FA",
   width: "device-width",
   initialScale: 1,
   // Pas de maximumScale : le pincer-pour-zoomer reste autorisé (accessibilité).
@@ -41,7 +50,7 @@ export default function RootLayout({
       <body>
         <BudgetProvider>
           {/* Cadre mobile : largeur max centrée sur desktop */}
-          <div className="relative mx-auto flex h-dvh w-full max-w-app flex-col overflow-hidden shadow-2xl">
+          <div className="relative mx-auto flex h-dvh w-full max-w-app flex-col overflow-hidden bg-paper shadow-2xl">
             {/* pt : réserve la zone de l'encoche / barre d'état (PWA plein
                 écran). Chaque page gère son propre défilement interne ; les
                 zones défilantes prévoient un pb suffisant pour la Tab Bar. */}
@@ -51,6 +60,7 @@ export default function RootLayout({
             <TabBar />
           </div>
           <Analytics />
+          <ServiceWorker />
         </BudgetProvider>
       </body>
     </html>
