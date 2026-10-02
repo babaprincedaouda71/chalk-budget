@@ -65,6 +65,8 @@ interface BudgetContextValue extends BudgetState {
   anchor: Date;
   /** Décale la période affichée de ±1 (jour/semaine/mois/année). */
   shiftPeriod: (delta: number) => void;
+  /** Affiche un mois précis (temporalité « Mois » ancrée sur `month`). */
+  showMonth: (month: Date) => void;
   /** Bornes [start, end) de la période courante. */
   range: { start: Date; end: Date };
   /** Libellé de la période, pour la pilule centrale des en-têtes. */
@@ -168,6 +170,10 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     (delta: number) => setAnchor((a) => shiftAnchor(period, a, delta)),
     [period]
   );
+  const showMonth = useCallback((month: Date) => {
+    setPeriod("month");
+    setAnchor(new Date(month.getFullYear(), month.getMonth(), 1));
+  }, []);
   const range = useMemo(() => periodRange(period, anchor), [period, anchor]);
   const rangeLabel = useMemo(() => periodLabel(period, anchor), [period, anchor]);
   const [state, setState] = useState<BudgetState>({
@@ -784,6 +790,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setPeriod,
     anchor,
     shiftPeriod,
+    showMonth,
     range,
     rangeLabel,
     addTransactions,
