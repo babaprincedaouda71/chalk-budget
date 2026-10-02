@@ -140,6 +140,11 @@ export function CategoryPicker({
           className="paper-bg fixed inset-0 z-[60] overflow-y-auto text-ink focus:outline-none"
           aria-describedby={undefined}
         >
+          {/* Bandeau sombre sous la barre d'état (texte blanc en web app). */}
+          <div
+            aria-hidden
+            className="fixed inset-x-0 top-0 z-10 h-[env(safe-area-inset-top)] bg-boardEdge"
+          />
           <div className="mx-auto min-h-dvh max-w-app px-4 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
             <header className="mb-4 flex items-center gap-2">
               <button

@@ -18,8 +18,11 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Ardoise",
-    // Barre d'état iOS à texte sombre : l'app est sur fond clair.
-    statusBarStyle: "default"
+    // Obligatoire : en mode "default", iOS (web app de l'écran d'accueil)
+    // calcule mal la hauteur de l'écran (100dvh trop court, bande vide sous
+    // la Tab Bar). Le texte de la barre d'état est alors blanc : la zone est
+    // peinte en sombre par le bandeau ci-dessous.
+    statusBarStyle: "black-translucent"
   },
   icons: {
     icon: [
@@ -51,10 +54,12 @@ export default function RootLayout({
         <BudgetProvider>
           {/* Cadre mobile : largeur max centrée sur desktop */}
           <div className="relative mx-auto flex h-dvh w-full max-w-app flex-col overflow-hidden bg-paper shadow-2xl">
-            {/* pt : réserve la zone de l'encoche / barre d'état (PWA plein
-                écran). Chaque page gère son propre défilement interne ; les
-                zones défilantes prévoient un pb suffisant pour la Tab Bar. */}
-            <main className="flex min-h-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+            {/* Bandeau sombre sous la barre d'état (heure, batterie en blanc)
+                en web app plein écran ; hauteur nulle dans le navigateur. */}
+            <div aria-hidden className="h-[env(safe-area-inset-top)] shrink-0 bg-boardEdge" />
+            {/* Chaque page gère son propre défilement interne ; les zones
+                défilantes prévoient un pb suffisant pour la Tab Bar. */}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {children}
             </main>
             <TabBar />
