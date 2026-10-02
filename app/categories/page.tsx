@@ -5,18 +5,21 @@ import { Pencil, Plus } from "lucide-react";
 import { CategoryIcon, ICON_NAMES } from "@/components/category-icon";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SegmentedControl } from "@/components/segmented-control";
-import { useBudget } from "@/lib/store";
+import { formatAmount, useBudget } from "@/lib/store";
+import { parseBudgetInput } from "@/lib/budget";
 import { Category, TxType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function CategoriesPage() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useBudget();
+  const { categories, currency, addCategory, updateCategory, deleteCategory } = useBudget();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(ICON_NAMES[0]);
   const [kind, setKind] = useState<TxType>("expense");
   const [keywords, setKeywords] = useState("");
+  // Budget mensuel saisi (texte brut ; vide = pas de budget).
+  const [budget, setBudget] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Onglet affiché : dépenses ou revenus (interrupteur à segments).
   const [tab, setTab] = useState<TxType>("expense");
@@ -32,6 +35,7 @@ export default function CategoriesPage() {
     setIcon(ICON_NAMES[0]);
     setKind(tab); // pré-sélectionne le type de l'onglet courant
     setKeywords("");
+    setBudget("");
     setConfirmDelete(false);
     setOpen(true);
   };
@@ -42,20 +46,32 @@ export default function CategoriesPage() {
     setIcon(c.icon);
     setKind(c.kind);
     setKeywords(c.keywords.join(", "));
+    setBudget(c.budget ? String(c.budget).replace(".", ",") : "");
     setConfirmDelete(false);
     setOpen(true);
   };
 
+  // Le budget ne concerne que les dépenses ; invalide = enregistrement bloqué.
+  const parsedBudget = kind === "expense" ? parseBudgetInput(budget) : undefined;
+  const budgetInvalid = parsedBudget === null;
+
   const save = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || budgetInvalid) return;
+    const budgetValue = parsedBudget ?? undefined;
     const parsedKeywords = keywords
       .split(",")
       .map((k) => k.trim().toLowerCase())
       .filter(Boolean);
     if (editing) {
-      updateCategory({ ...editing, name: name.trim(), icon, keywords: parsedKeywords });
+      updateCategory({
+        ...editing,
+        name: name.trim(),
+        icon,
+        keywords: parsedKeywords,
+        budget: budgetValue
+      });
     } else {
-      addCategory({ name: name.trim(), icon, kind, keywords: parsedKeywords });
+      addCategory({ name: name.trim(), icon, kind, keywords: parsedKeywords, budget: budgetValue });
     }
     setOpen(false);
   };
@@ -79,7 +95,14 @@ export default function CategoriesPage() {
                 className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-ink/5"
               >
                 <CategoryIcon name={c.icon} className="h-5 w-5 shrink-0 text-inkSoft" />
-                <span className="flex-1 truncate">{c.name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{c.name}</span>
+                  {c.budget ? (
+                    <span className="block text-xs text-inkSoft">
+                      Budget : {formatAmount(c.budget, currency)} / mois
+                    </span>
+                  ) : null}
+                </span>
                 {c.keywords.length > 0 && (
                   <span className="max-w-[35%] truncate text-xs text-inkSoft">
                     {c.keywords.slice(0, 4).join(", ")}
@@ -185,9 +208,38 @@ export default function CategoriesPage() {
               />
             </label>
 
+            {kind === "expense" && (
+              <label className="block">
+                <span className="mb-1 block text-sm text-inkSoft">
+                  Budget mensuel (facultatif)
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="ex. 2000"
+                    aria-invalid={budgetInvalid}
+                    className={cn(
+                      "w-full rounded-lg border bg-white/60 px-3 py-2 focus:outline-none",
+                      budgetInvalid
+                        ? "border-brickDeep/60 focus:border-brickDeep"
+                        : "border-ink/20 focus:border-ink/50"
+                    )}
+                  />
+                  <span className="shrink-0 text-sm text-inkSoft">{currency}</span>
+                </div>
+                {budgetInvalid && (
+                  <span className="mt-1 block text-xs text-brickDeep">
+                    Montant invalide : saisissez un nombre positif, ex. 1500 ou 1500,50.
+                  </span>
+                )}
+              </label>
+            )}
+
             <button
               onClick={save}
-              disabled={!name.trim()}
+              disabled={!name.trim() || budgetInvalid}
               className="w-full rounded-lg bg-ink py-2.5 font-bold text-paper disabled:opacity-40"
             >
               {editing ? "Enregistrer" : "Créer"}

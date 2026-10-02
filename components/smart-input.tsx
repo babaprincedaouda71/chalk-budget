@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Send, Sparkles } from "lucide-react";
-import { useBudget } from "@/lib/store";
+import { formatAmount, useBudget } from "@/lib/store";
+import { budgetLevel, monthSpendingByCategory } from "@/lib/budget";
 import { leftoverWords, parseLocally } from "@/lib/parser";
 import { ParsedItem } from "@/lib/types";
 import { toISODate } from "@/lib/utils";
@@ -16,11 +17,13 @@ import { CategoryIcon } from "./category-icon";
  * et le graphique circulaire se mettent à jour dans la foulée.
  */
 export function SmartInput() {
-  const { categories, currency, addTransactions } = useBudget();
+  const { categories, transactions, currency, addTransactions } = useBudget();
   const [text, setText] = useState("");
   const [feedback, setFeedback] = useState<{
     items: ParsedItem[];
     leftover: string;
+    /** Budgets que cet ajout fait passer en alerte ou en dépassement. */
+    budgetAlerts?: { text: string; over: boolean }[];
     error?: string;
   } | null>(null);
 
@@ -43,6 +46,32 @@ export function SmartInput() {
       return;
     }
 
+    // Alertes budget : comparées sur le mois courant, avant/après l'ajout ;
+    // on ne prévient que si l'ajout change le niveau (ok → alerte → dépassé).
+    const spending = monthSpendingByCategory(transactions, new Date());
+    const added = new Map<string, number>();
+    for (const i of items) {
+      if (i.type === "expense") added.set(i.categoryId, (added.get(i.categoryId) ?? 0) + i.amount);
+    }
+    const budgetAlerts: { text: string; over: boolean }[] = [];
+    for (const [id, amount] of added) {
+      const cat = categories.find((c) => c.id === id);
+      if (!cat?.budget) continue;
+      const before = spending.get(id) ?? 0;
+      const after = before + amount;
+      const level = budgetLevel(after, cat.budget);
+      if (level === "ok" || level === budgetLevel(before, cat.budget)) continue;
+      const amounts = `${formatAmount(after, currency)} / ${formatAmount(cat.budget, currency)}`;
+      budgetAlerts.push(
+        level === "over"
+          ? { text: `Budget « ${cat.name} » dépassé : ${amounts}`, over: true }
+          : {
+              text: `Budget « ${cat.name} » à ${Math.round((after / cat.budget) * 100)} % : ${amounts}`,
+              over: false
+            }
+      );
+    }
+
     const today = toISODate();
     addTransactions(
       items.map((i) => ({
@@ -53,7 +82,7 @@ export function SmartInput() {
         note: i.note
       }))
     );
-    setFeedback({ items, leftover: leftoverWords(value) });
+    setFeedback({ items, leftover: leftoverWords(value), budgetAlerts });
     setText("");
   };
 
@@ -107,6 +136,14 @@ export function SmartInput() {
                   </li>
                 ))}
               </ul>
+              {feedback.budgetAlerts?.map((a) => (
+                <p
+                  key={a.text}
+                  className={`mt-1 font-medium ${a.over ? "text-brickDeep" : "text-amberDeep"}`}
+                >
+                  {a.text}
+                </p>
+              ))}
               {feedback.leftover && (
                 <p className="mt-1 text-inkSoft/70">
                   Ignoré (sans prix) : « {feedback.leftover} »

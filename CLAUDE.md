@@ -49,6 +49,9 @@ Parser behavior (`lib/parser.ts`):
 
 **Self-learning**: `updateTransaction` in the store detects a category correction and appends the note's significant words (`extractLearnableWords`, stopwords filtered, max 3, skipped if already a keyword anywhere) to the chosen category's keywords.
 
+### Budgets par catégorie (`lib/budget.ts`)
+An expense `Category` may carry `budget?: number` (monthly limit; set in the category dialog, parsed by `parseBudgetInput`). Since it lives on the category it syncs with it (per-entity merge). The store exposes `budgets` (`BudgetStatus[]`, most consumed first) and `budgetMonthLabel`, always computed over the **calendar month containing `anchor`**, whatever the displayed period. Levels: `ok` < 80 % (`BUDGET_WARN_RATIO`) ≤ `warn` ≤ 100 % < `over`, colored `greenDeep` / `amberDeep` / `brickDeep`. Shown by `components/budget-card.tsx` on the dashboard; the smart input warns when an addition changes a category's level for the current month. Not to be confused with `RatioBar`, whose "Dépenses > revenus" label means expenses exceed income over the period.
+
 ### Data model (`lib/types.ts`)
 `Transaction` (type income/expense, ISO `yyyy-mm-dd` date, `categoryId`, optional `recurring`), `Category` (id, name, lucide icon name as a string, kind, keywords for the parser). Defaults live in `lib/categories.ts`; `FALLBACK_EXPENSE_ID` ("divers") is used when no keyword matches. Category icons are referenced by lucide-react icon **name strings** resolved in `components/category-icon.tsx`.
 

@@ -19,6 +19,7 @@ const config: Config = {
         greenDeep: "#059669", // revenus sur fond clair (émeraude soutenu)
         brick: "#FB7185", // dépenses sur fond sombre (rose clair)
         brickDeep: "#E11D48", // dépenses sur fond clair (rose soutenu)
+        amberDeep: "#D97706", // alerte budget (≥ 80 %) sur fond clair
         paper: "#F5F7FA", // fond des pages claires
         paperLine: "#E2E8F0", // séparateurs discrets
         paperMargin: "#E2E8F0", // (hérité, neutralisé)

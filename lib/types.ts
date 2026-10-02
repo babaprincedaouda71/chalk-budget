@@ -6,6 +6,8 @@ export interface Category {
   icon: string; // nom d'icône lucide-react
   kind: TxType;
   keywords: string[]; // mots-clés pour le Smart Input
+  /** Budget mensuel (catégories de dépense uniquement). Absent = pas de budget. */
+  budget?: number;
   /** Horodatage de dernière modification (fusion multi-appareils par entité). */
   updatedAt?: number;
   /** Tombstone : catégorie supprimée, conservée pour propager la suppression. */

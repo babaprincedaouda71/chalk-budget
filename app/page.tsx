@@ -6,6 +6,7 @@ import { PeriodNav, PeriodPill } from "@/components/period-control";
 import { RatioBar } from "@/components/ratio-bar";
 import { SmartInput } from "@/components/smart-input";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
+import { BudgetCard } from "@/components/budget-card";
 import { CategoryIcon } from "@/components/category-icon";
 import { TransactionForm } from "@/components/transaction-form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -97,6 +98,8 @@ export default function DashboardPage() {
           </ul>
         )}
       </section>
+
+      <BudgetCard />
 
       <ExpensePieChart />
       </div>

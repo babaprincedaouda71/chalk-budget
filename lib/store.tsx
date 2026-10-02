@@ -10,6 +10,7 @@ import React, {
   useState
 } from "react";
 import { Category, RecurringScope, Transaction } from "./types";
+import { BudgetStatus, budgetStatuses, monthSpendingByCategory } from "./budget";
 import {
   CATALOG_VERSION,
   DEFAULT_CATEGORIES,
@@ -97,6 +98,10 @@ interface BudgetContextValue extends BudgetState {
   periodTransactions: Transaction[];
   totals: { income: number; expense: number; balance: number };
   expenseByCategory: { category: Category; total: number }[];
+  /** Budgets du mois calendaire contenant `anchor` (catégories avec budget). */
+  budgets: BudgetStatus[];
+  /** Libellé de ce mois, ex. « Octobre 2026 ». */
+  budgetMonthLabel: string;
   syncCode: string | null;
   syncStatus: SyncStatus;
   enableSync: (code: string) => Promise<void>;
@@ -737,6 +742,12 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => b.total - a.total);
   }, [periodTransactions, liveCategories]);
 
+  const budgets = useMemo(
+    () => budgetStatuses(liveCategories, monthSpendingByCategory(liveTransactions, anchor)),
+    [liveCategories, liveTransactions, anchor]
+  );
+  const budgetMonthLabel = useMemo(() => periodLabel("month", anchor), [anchor]);
+
   const value: BudgetContextValue = {
     ...state,
     transactions: liveTransactions,
@@ -762,6 +773,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     periodTransactions,
     totals,
     expenseByCategory,
+    budgets,
+    budgetMonthLabel,
     syncCode,
     syncStatus,
     enableSync,
