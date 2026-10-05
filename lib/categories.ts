@@ -3,11 +3,11 @@ import { Category, Transaction } from "./types";
 export const DEFAULT_CATEGORIES: Category[] = [
   {
     id: "alimentation-perso",
-    name: "Alimentation - Courses Personnelles",
+    name: "Alimentation",
     icon: "ShoppingBasket",
     kind: "expense",
     keywords: [
-      "courses", "supermarché", "supermarche", "marché", "marche", "épicerie", "epicerie",
+      "courses", "courses communes", "courses commun", "courses en commun", "supermarché", "supermarche", "marché", "marche", "épicerie", "epicerie",
       "tomate", "tomates", "oignon", "oignons", "pain", "lait", "fromage", "légume",
       "legume", "fruit", "viande", "poulet", "poisson", "riz", "pâtes", "pates",
       "oeufs", "œufs", "yaourt", "beurre", "huile", "sucre", "farine", "café", "cafe", "thé", "the"
@@ -22,16 +22,6 @@ export const DEFAULT_CATEGORIES: Category[] = [
       "taxi", "bus", "train", "tram", "métro", "metro", "essence", "gasoil", "diesel",
       "carburant", "station", "péage", "peage", "parking", "uber", "careem", "indrive",
       "tricycle", "billet"
-    ]
-  },
-  {
-    id: "internet-telecom",
-    name: "Internet et Télécom",
-    icon: "Wifi",
-    kind: "expense",
-    keywords: [
-      "internet", "wifi", "forfait", "recharge", "téléphone", "telephone", "mobile",
-      "fibre", "sim", "data", "orange", "inwi", "iam", "yoxo"
     ]
   },
   {
@@ -72,19 +62,15 @@ export const DEFAULT_CATEGORIES: Category[] = [
     ]
   },
   {
-    id: "alimentation-commun",
-    name: "Alimentation - Courses en commun",
-    icon: "ShoppingCart",
-    kind: "expense",
-    keywords: ["courses communes", "courses commun", "courses en commun"]
-  },
-  {
     id: "abonnement",
-    name: "Abonnement",
+    name: "Abonnements & Télécom",
     icon: "Tv",
     kind: "expense",
     keywords: [
-      "abonnement", "netflix", "spotify", "canal", "prime", "disney", "icloud", "chatgpt"
+      "abonnement", "abonnements", "netflix", "spotify", "canal", "prime", "disney",
+      "icloud", "chatgpt", "internet", "wifi", "forfait", "recharge", "téléphone",
+      "telephone", "mobile", "fibre", "sim", "data", "orange", "inwi", "iam", "yoxo",
+      "abonnement internet"
     ]
   },
   {
@@ -238,7 +224,7 @@ export const FALLBACK_EXPENSE_ID = "divers";
  * chargé, `migrateCatalog` remplace les anciennes catégories par défaut par
  * les nouvelles et rattache les transactions aux catégories équivalentes.
  */
-export const CATALOG_VERSION = 5;
+export const CATALOG_VERSION = 6;
 
 // Identifiants des catégories par défaut de la V1 (remplacées à la migration ;
 // les catégories créées par l'utilisateur sont conservées telles quelles).
@@ -271,6 +257,52 @@ const V4_KEYWORD_ADDITIONS: Record<string, string[]> = {
 
 // Catégories ajoutées en V5 (factures d'eau et d'électricité).
 const V5_ADDED_IDS = ["eau-electricite"];
+
+// Fusions de la V6 : catégorie absorbée → catégorie qui la reçoit, avec les
+// noms par défaut à remplacer (un nom personnalisé par l'utilisateur est gardé).
+const V6_MERGES: { from: string; into: string }[] = [
+  { from: "alimentation-commun", into: "alimentation-perso" },
+  { from: "internet-telecom", into: "abonnement" }
+];
+const V6_RENAMES: Record<string, { old: string; name: string }> = {
+  "alimentation-perso": { old: "Alimentation - Courses Personnelles", name: "Alimentation" },
+  abonnement: { old: "Abonnement", name: "Abonnements & Télécom" }
+};
+
+/**
+ * Fusionne les catégories de `V6_MERGES` : mots-clés réunis, budget repris si
+ * la cible n'en a pas, transactions rattachées, catégorie absorbée retirée.
+ * Idempotent et sans toucher aux `updatedAt` : il est réappliqué à chaque état
+ * reçu d'un appareil resté sur une version antérieure, et tous les appareils
+ * convergent ainsi vers le même résultat.
+ */
+function applyV6Merges<T extends { transactions: Transaction[]; categories: Category[] }>(
+  state: T
+): T {
+  let { categories, transactions } = state;
+  for (const { from, into } of V6_MERGES) {
+    const src = categories.find((c) => c.id === from);
+    const dst = categories.find((c) => c.id === into && !c.deleted);
+    if (!src || !dst) continue;
+    const have = new Set(dst.keywords.map((k) => k.toLowerCase()));
+    const merged: Category = {
+      ...dst,
+      keywords: [
+        ...dst.keywords,
+        ...(src.deleted ? [] : src.keywords.filter((k) => !have.has(k.toLowerCase())))
+      ],
+      budget: dst.budget ?? (src.deleted ? undefined : src.budget)
+    };
+    if (merged.budget === undefined) delete merged.budget;
+    categories = categories
+      .filter((c) => c.id !== from)
+      .map((c) => (c.id === into ? merged : c));
+    transactions = transactions.map((t) =>
+      t.categoryId === from ? { ...t, categoryId: into } : t
+    );
+  }
+  return { ...state, categories, transactions };
+}
 
 export function migrateCatalog<
   T extends { transactions: Transaction[]; categories: Category[] }
@@ -330,5 +362,18 @@ export function migrateCatalog<
     }
   }
 
-  return migrated;
+  if (from < 6) {
+    // V5 → V6 : renommage des catégories par défaut (si non personnalisées).
+    migrated = {
+      ...migrated,
+      categories: migrated.categories.map((c) => {
+        const r = V6_RENAMES[c.id];
+        return r && c.name === r.old ? { ...c, name: r.name } : c;
+      })
+    };
+  }
+
+  // Fusions V6, appliquées quelle que soit la version : un appareil encore sur
+  // l'ancienne version peut renvoyer les catégories absorbées dans le blob.
+  return applyV6Merges(migrated);
 }
