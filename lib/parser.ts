@@ -26,7 +26,9 @@ const NUMBER_RE = /^\d+(?:[.,]\d+)?$/;
 
 const CURRENCY_WORDS = new Set([
   "dh", "dhs", "mad", "fcfa", "cfa", "xof", "eur", "euro", "euros",
-  "usd", "chf", "cad", "gbp", "€", "$", "£"
+  "usd", "chf", "cad", "gbp", "€", "$", "£",
+  // Noms de devises en toutes lettres (dictée vocale : « tomates 50 dirhams »).
+  "dirham", "dirhams", "franc", "francs", "dollar", "dollars", "dinar", "dinars"
 ]);
 
 const STOPWORDS = new Set([

@@ -51,6 +51,15 @@ describe("parseLocally — découpage en transactions", () => {
     ]);
   });
 
+  it("ignore les devises en toutes lettres (dictée vocale)", () => {
+    expect(parse("tomates 50 dirhams, oignons 20 dirhams taxi 30 francs CFA")).toMatchObject([
+      { note: "tomates", amount: 50, categoryId: "alimentation" },
+      { note: "oignons", amount: 20, categoryId: "alimentation" },
+      { note: "taxi", amount: 30, categoryId: "transport" }
+    ]);
+    expect(leftoverWords("pain 10 dirhams")).toBe("");
+  });
+
   it("accepte les décimales avec virgule ou point", () => {
     expect(parse("pain 12,5")).toMatchObject([{ amount: 12.5 }]);
     expect(parse("pain 12.5")).toMatchObject([{ amount: 12.5 }]);
