@@ -11,7 +11,7 @@ npm run start    # serve the production build
 npm test         # Vitest — unit tests of the pure logic in lib/ (*.test.ts next to the code)
 ```
 
-No lint script is configured. Tests cover the pure modules only (no DOM/React): `lib/parser.test.ts` (ajout magique), `lib/merge.test.ts` (sync merge), `lib/occurrences.test.ts` (recurring occurrences, budgets, 12-month evolution). Run a single file with `npx vitest run lib/parser.test.ts`. Parser tests use their own frozen category fixture, not `DEFAULT_CATEGORIES`.
+No lint script is configured. Tests cover the pure modules only (no DOM/React): `lib/parser.test.ts` (ajout magique), `lib/merge.test.ts` (sync merge), `lib/occurrences.test.ts` (recurring occurrences, budgets, 12-month evolution), `lib/categories.test.ts` (catalog migration + default-category parsing). Run a single file with `npx vitest run lib/parser.test.ts`. Parser tests use their own frozen category fixture, not `DEFAULT_CATEGORIES`.
 
 ## Règles projet (à respecter impérativement)
 

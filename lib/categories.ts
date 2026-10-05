@@ -161,6 +161,17 @@ export const DEFAULT_CATEGORIES: Category[] = [
     ]
   },
   {
+    id: "eau-electricite",
+    name: "Eau & Électricité",
+    icon: "Zap",
+    kind: "expense",
+    keywords: [
+      "eau", "électricité", "electricite", "lumière", "lumiere",
+      "courant", "compteur", "lydec", "redal", "amendis",
+      "radeema", "onee", "onep", "srm"
+    ]
+  },
+  {
     id: "loyer",
     name: "Loyer",
     icon: "Home",
@@ -227,7 +238,7 @@ export const FALLBACK_EXPENSE_ID = "divers";
  * chargé, `migrateCatalog` remplace les anciennes catégories par défaut par
  * les nouvelles et rattache les transactions aux catégories équivalentes.
  */
-export const CATALOG_VERSION = 4;
+export const CATALOG_VERSION = 5;
 
 // Identifiants des catégories par défaut de la V1 (remplacées à la migration ;
 // les catégories créées par l'utilisateur sont conservées telles quelles).
@@ -257,6 +268,9 @@ const V4_KEYWORD_ADDITIONS: Record<string, string[]> = {
   "internet-telecom": ["yoxo", "abonnement internet"],
   "sante-sport": ["hopital", "clinique", "examen", "examens", "consultation"]
 };
+
+// Catégories ajoutées en V5 (factures d'eau et d'électricité).
+const V5_ADDED_IDS = ["eau-electricite"];
 
 export function migrateCatalog<
   T extends { transactions: Transaction[]; categories: Category[] }
@@ -303,6 +317,17 @@ export function migrateCatalog<
         return fresh.length ? { ...c, keywords: [...c.keywords, ...fresh] } : c;
       })
     };
+  }
+
+  if (from < 5) {
+    // V4 → V5 : ajout de la catégorie « Eau & Électricité » si absente.
+    const existing = new Set(migrated.categories.map((c) => c.id));
+    const additions = DEFAULT_CATEGORIES.filter(
+      (c) => V5_ADDED_IDS.includes(c.id) && !existing.has(c.id)
+    );
+    if (additions.length) {
+      migrated = { ...migrated, categories: [...migrated.categories, ...additions] };
+    }
   }
 
   return migrated;
