@@ -11,7 +11,7 @@ npm run start    # serve the production build
 npm test         # Vitest — unit tests of the pure logic in lib/ (*.test.ts next to the code)
 ```
 
-No lint script is configured. Tests cover the pure modules only (no DOM/React): `lib/parser.test.ts` (ajout magique), `lib/merge.test.ts` (sync merge), `lib/occurrences.test.ts` (recurring occurrences, budgets, 12-month evolution), `lib/categories.test.ts` (catalog migration + default-category parsing). Run a single file with `npx vitest run lib/parser.test.ts`. Parser tests use their own frozen category fixture, not `DEFAULT_CATEGORIES`.
+No lint script is configured. Tests cover the pure modules only (no DOM/React): `lib/parser.test.ts` (ajout magique), `lib/merge.test.ts` (sync merge), `lib/occurrences.test.ts` (recurring occurrences, budgets, 12-month evolution), `lib/categories.test.ts` (catalog migration + default-category parsing), `lib/remaining.test.ts` (reste à vivre). Run a single file with `npx vitest run lib/parser.test.ts`. Parser tests use their own frozen category fixture, not `DEFAULT_CATEGORIES`.
 
 ## Règles projet (à respecter impérativement)
 
@@ -52,6 +52,9 @@ Parser behavior (`lib/parser.ts`):
 
 ### Budgets par catégorie (`lib/budget.ts`)
 An expense `Category` may carry `budget?: number` (monthly limit; set in the category dialog, parsed by `parseBudgetInput`). Since it lives on the category it syncs with it (per-entity merge). The store exposes `budgets` (`BudgetStatus[]`, most consumed first) and `budgetMonthLabel`, always computed over the **calendar month containing `anchor`**, whatever the displayed period. Levels: `ok` < 80 % (`BUDGET_WARN_RATIO`) ≤ `warn` ≤ 100 % < `over`, colored `greenDeep` / `amberDeep` / `brickDeep`. Shown by `components/budget-card.tsx` on the dashboard; the smart input and the "+" form (`TransactionForm`, new transactions only — it stays open on an alert screen with an OK button) warn when an addition changes a category's level, via the shared `budgetAlertsFor` / `budgetAlertText`. Not to be confused with `RatioBar`, whose "Dépenses > revenus" label means expenses exceed income over the period.
+
+### Reste à vivre (`lib/remaining.ts`)
+`remainingToLive(transactions, today)` computes, over the **current calendar month** (not the anchor): month income (received + expected later in the month) − expenses dated up to today − expenses dated after today (recurring occurrences or future-dated, listed as "Dépenses prévues"), plus an amount per remaining day (today included). Previous months' balances are not carried over (the app doesn't know the real account balance). Shown by `components/remaining-card.tsx` at the top of the dashboard's scrolling area, only when the anchor is in the current month; "today" is refreshed on `visibilitychange` (the PWA can stay open for days).
 
 ### Sauvegarde fichier (`lib/backup.ts`)
 On iOS, deleting the home-screen web app wipes its localStorage. "Sauvegarder dans Fichiers" (Paramètres + dashboard `BackupReminder`) writes a full backup — the raw synced state (tombstones + `updatedAt` included) with `app: "ardoise-budget"`, `format: 2` — through the share sheet (`navigator.share` with a file, download fallback). "Restaurer ou importer…" detects such a file (`isBackupFile`) and calls store `restoreBackup`, which merges it with `mergeStates` like a sync pull (no duplicates, newest entity wins). Older transaction-only JSON exports and CSV still go through `lib/importer.ts`. The dashboard reminder shows when there are transactions, sync is off and the last backup is > 7 days old ("Plus tard" snoozes 3 days; both timestamps are per-device localStorage conveniences).
