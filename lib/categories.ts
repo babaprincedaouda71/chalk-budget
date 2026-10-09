@@ -39,7 +39,12 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: "Dettes",
     icon: "HandCoins",
     kind: "expense",
-    keywords: ["dette", "dettes"]
+    keywords: [
+      "dette", "dettes",
+      // Phrases complètes : elles l'emportent sur « remboursement » (Autres revenus).
+      "remboursement dette", "remboursement dettes", "remboursement de dette",
+      "remboursement de la dette", "remboursement de ma dette", "remboursement des dettes"
+    ]
   },
   {
     id: "habillement",
@@ -92,7 +97,15 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: "Prêts",
     icon: "Banknote",
     kind: "expense",
-    keywords: ["prêt", "pret", "prêts", "prets", "crédit", "credit", "traite"]
+    keywords: [
+      "prêt", "pret", "prêts", "prets", "crédit", "credit", "traite",
+      // Phrases complètes : elles l'emportent sur « remboursement » (Autres revenus)
+      // et sur « emprunt » (Prêt reçu).
+      "remboursement prêt", "remboursement pret", "remboursement du prêt",
+      "remboursement du pret", "remboursement crédit", "remboursement credit",
+      "remboursement du crédit", "remboursement du credit", "remboursement emprunt",
+      "remboursement de l'emprunt"
+    ]
   },
   {
     id: "voyage",
@@ -172,6 +185,13 @@ export const DEFAULT_CATEGORIES: Category[] = [
     keywords: ["formation", "cours", "livre", "udemy", "coursera", "certification"]
   },
   {
+    id: "tontine",
+    name: "Tontine",
+    icon: "Handshake",
+    kind: "expense",
+    keywords: ["tontine", "tontines", "cotisation", "cotisations", "daret"]
+  },
+  {
     id: "divers",
     name: "Divers",
     icon: "CircleDashed",
@@ -207,6 +227,26 @@ export const DEFAULT_CATEGORIES: Category[] = [
     keywords: ["part time", "job", "freelance", "mission"]
   },
   {
+    id: "tontine-income",
+    name: "Tontine reçue",
+    icon: "Handshake",
+    kind: "income",
+    keywords: [
+      "tontine reçue", "tontine recue", "tontine touchée", "tontine touchee",
+      "tontine ramassée", "tontine ramassee", "daret reçu", "daret recu"
+    ]
+  },
+  {
+    id: "pret-income",
+    name: "Prêt reçu",
+    icon: "Landmark",
+    kind: "income",
+    keywords: [
+      "prêt reçu", "pret recu", "emprunt", "emprunts", "emprunté", "emprunte",
+      "crédit reçu", "credit recu", "avance reçue", "avance recue"
+    ]
+  },
+  {
     id: "autres-revenus",
     name: "Autres revenus",
     icon: "Coins",
@@ -224,7 +264,7 @@ export const FALLBACK_EXPENSE_ID = "divers";
  * chargé, `migrateCatalog` remplace les anciennes catégories par défaut par
  * les nouvelles et rattache les transactions aux catégories équivalentes.
  */
-export const CATALOG_VERSION = 6;
+export const CATALOG_VERSION = 7;
 
 // Identifiants des catégories par défaut de la V1 (remplacées à la migration ;
 // les catégories créées par l'utilisateur sont conservées telles quelles).
@@ -257,6 +297,34 @@ const V4_KEYWORD_ADDITIONS: Record<string, string[]> = {
 
 // Catégories ajoutées en V5 (factures d'eau et d'électricité).
 const V5_ADDED_IDS = ["eau-electricite"];
+
+// Catégories ajoutées en V7 (tontine : cotisations versées et cagnotte reçue ;
+// argent emprunté).
+const V7_ADDED_IDS = ["tontine", "tontine-income", "pret-income"];
+
+// Mots-clés ajoutés en V7 : « remboursement dette / prêt » était classé en
+// revenu (Autres revenus) à cause du mot « remboursement ».
+const V7_KEYWORD_ADDITIONS: Record<string, string[]> = {
+  dettes: DEFAULT_CATEGORIES.find((c) => c.id === "dettes")!.keywords,
+  prets: DEFAULT_CATEGORIES.find((c) => c.id === "prets")!.keywords
+};
+
+/** Ajoute les mots-clés manquants (comparaison insensible à la casse). */
+function addKeywords<T extends { categories: Category[] }>(
+  state: T,
+  additions: Record<string, string[]>
+): T {
+  return {
+    ...state,
+    categories: state.categories.map((c) => {
+      const extra = additions[c.id];
+      if (!extra) return c;
+      const have = new Set(c.keywords.map((k) => k.toLowerCase()));
+      const fresh = extra.filter((k) => !have.has(k.toLowerCase()));
+      return fresh.length ? { ...c, keywords: [...c.keywords, ...fresh] } : c;
+    })
+  };
+}
 
 // Fusions de la V6 : catégorie absorbée → catégorie qui la reçoit, avec les
 // noms par défaut à remplacer (un nom personnalisé par l'utilisateur est gardé).
@@ -339,16 +407,7 @@ export function migrateCatalog<
   if (from < 4) {
     // V3 → V4 : mots-clés supplémentaires pour le parseur local (l'IA a été
     // retirée ; ces termes viennent de l'usage réel de l'utilisateur).
-    migrated = {
-      ...migrated,
-      categories: migrated.categories.map((c) => {
-        const extra = V4_KEYWORD_ADDITIONS[c.id];
-        if (!extra) return c;
-        const have = new Set(c.keywords.map((k) => k.toLowerCase()));
-        const fresh = extra.filter((k) => !have.has(k));
-        return fresh.length ? { ...c, keywords: [...c.keywords, ...fresh] } : c;
-      })
-    };
+    migrated = addKeywords(migrated, V4_KEYWORD_ADDITIONS);
   }
 
   if (from < 5) {
@@ -371,6 +430,19 @@ export function migrateCatalog<
         return r && c.name === r.old ? { ...c, name: r.name } : c;
       })
     };
+  }
+
+  if (from < 7) {
+    // V6 → V7 : ajout des catégories « Tontine », « Tontine reçue » et « Prêt
+    // reçu » si absentes, et des phrases « remboursement dette / prêt ».
+    migrated = addKeywords(migrated, V7_KEYWORD_ADDITIONS);
+    const existing = new Set(migrated.categories.map((c) => c.id));
+    const additions = DEFAULT_CATEGORIES.filter(
+      (c) => V7_ADDED_IDS.includes(c.id) && !existing.has(c.id)
+    );
+    if (additions.length) {
+      migrated = { ...migrated, categories: [...migrated.categories, ...additions] };
+    }
   }
 
   // Fusions V6, appliquées quelle que soit la version : un appareil encore sur

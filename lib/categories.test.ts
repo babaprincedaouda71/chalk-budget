@@ -56,7 +56,9 @@ describe("migrateCatalog V5 → V6 (fusions)", () => {
 
   it("fusionne, renomme et rattache les transactions", () => {
     const out = migrateCatalog(v5(), 5);
-    expect(out.categories.map((c) => c.id)).toEqual(["alimentation-perso", "abonnement"]);
+    expect(out.categories.map((c) => c.id)).toEqual([
+      "alimentation-perso", "abonnement", "tontine", "tontine-income", "pret-income"
+    ]);
     const alim = out.categories[0];
     expect(alim.name).toBe("Alimentation");
     expect(alim.keywords).toEqual(["pain", "courses communes", "kefta"]);
@@ -92,5 +94,74 @@ describe("migrateCatalog V5 → V6 (fusions)", () => {
     const ids = DEFAULT_CATEGORIES.map((c) => c.id);
     expect(ids).not.toContain("alimentation-commun");
     expect(ids).not.toContain("internet-telecom");
+  });
+});
+
+describe("migrateCatalog V6 → V7 (tontine, prêt reçu)", () => {
+  const ids = ["tontine", "tontine-income", "pret-income"];
+  const v6 = DEFAULT_CATEGORIES.filter((c) => !ids.includes(c.id));
+
+  it("ajoute « Tontine », « Tontine reçue » et « Prêt reçu » aux catalogues existants", () => {
+    const out = migrateCatalog({ transactions: [], categories: v6 }, 6);
+    for (const id of ids) {
+      expect(out.categories.filter((c) => c.id === id)).toHaveLength(1);
+    }
+  });
+
+  it("ne touche pas un catalogue déjà en V7", () => {
+    const out = migrateCatalog({ transactions: [], categories: v6 }, 7);
+    expect(out.categories.some((c) => c.id === "tontine")).toBe(false);
+  });
+});
+
+describe("catégories Tontine dans l'ajout magique", () => {
+  it.each(["tontine 500", "cotisation tontine 1000", "daret 300"])(
+    "%s → dépense tontine",
+    (text) => {
+      const [item] = parseLocally(text, DEFAULT_CATEGORIES);
+      expect(item.categoryId).toBe("tontine");
+      expect(item.type).toBe("expense");
+    }
+  );
+
+  it.each(["tontine reçue 6000", "tontine touchée 6000", "daret reçu 3000"])(
+    "%s → revenu tontine",
+    (text) => {
+      const [item] = parseLocally(text, DEFAULT_CATEGORIES);
+      expect(item.categoryId).toBe("tontine-income");
+      expect(item.type).toBe("income");
+    }
+  );
+});
+
+describe("remboursements et prêts dans l'ajout magique", () => {
+  it("complète les mots-clés de Dettes et Prêts sans perdre ceux de l'utilisateur", () => {
+    const old = DEFAULT_CATEGORIES.filter((c) => c.id !== "pret-income").map((c) =>
+      c.id === "dettes" ? { ...c, keywords: ["dette", "dettes", "ali"] } : c
+    );
+    const out = migrateCatalog({ transactions: [], categories: old }, 6);
+    const dettes = out.categories.find((c) => c.id === "dettes")!;
+    expect(dettes.keywords).toContain("ali");
+    expect(dettes.keywords).toContain("remboursement de la dette");
+    expect(dettes.keywords.filter((k) => k === "dette")).toHaveLength(1);
+  });
+
+  it.each([
+    ["remboursement dette 500", "dettes", "expense"],
+    ["remboursement de la dette 500", "dettes", "expense"],
+    ["remboursement de ma dette 500", "dettes", "expense"],
+    ["dette 500", "dettes", "expense"],
+    ["remboursement prêt 500", "prets", "expense"],
+    ["remboursement du crédit 1500", "prets", "expense"],
+    ["remboursement emprunt 2000", "prets", "expense"],
+    ["traite voiture 2000", "prets", "expense"],
+    ["prêt reçu 5000", "pret-income", "income"],
+    ["emprunt banque 10000", "pret-income", "income"],
+    ["emprunté à Ali 300", "pret-income", "income"],
+    ["remboursement mutuelle 300", "autres-revenus", "income"]
+  ])("%s → %s", (text, categoryId, type) => {
+    const [item] = parseLocally(text, DEFAULT_CATEGORIES);
+    expect(item.categoryId).toBe(categoryId);
+    expect(item.type).toBe(type);
   });
 });
